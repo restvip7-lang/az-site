@@ -5,6 +5,16 @@ import { useCallback, useEffect, useState } from "react";
 export default function Gallery({ images, title }: { images: string[]; title: string }) {
   const [i, setI] = useState(0);
   const [full, setFull] = useState(false);
+  const [touchX, setTouchX] = useState<number | null>(null);
+  const swipe = {
+    onTouchStart: (e: React.TouchEvent) => setTouchX(e.touches[0].clientX),
+    onTouchEnd: (e: React.TouchEvent) => {
+      if (touchX === null) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+      setTouchX(null);
+    },
+  };
   const n = images.length;
   const go = useCallback((d: number) => setI((v) => (v + d + n) % n), [n]);
   useEffect(() => {
@@ -20,7 +30,7 @@ export default function Gallery({ images, title }: { images: string[]; title: st
   if (!n) return <div className="aspect-[16/9] rounded-2xl bg-slate-100" />;
   return (
     <div>
-      <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100 sm:aspect-[16/10]" {...swipe}>
         <Image
           src={images[i]}
           alt={`${title} — фото ${i + 1}`}
@@ -47,7 +57,7 @@ export default function Gallery({ images, title }: { images: string[]; title: st
         ))}
       </div>
       {full && (
-        <div role="dialog" aria-modal="true" aria-label="Просмотр фото" className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95" onClick={() => setFull(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Просмотр фото" className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95" onClick={() => setFull(false)} {...swipe}>
           <div className="relative h-[90vh] w-[95vw]" onClick={(e) => e.stopPropagation()}>
             <Image src={images[i]} alt={`${title} — фото ${i + 1}`} fill sizes="95vw" quality={85} className="object-contain" />
           </div>

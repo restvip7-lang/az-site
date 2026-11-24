@@ -133,8 +133,12 @@ export default async function Page({ params }: { params: Promise<Params> }) {
       <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">
           <Gallery images={p.images} title={p.title} />
-          <h1 className="mt-8 text-3xl font-black leading-tight text-brand-900 sm:text-4xl">{p.title}</h1>
+          <h1 className="mt-6 text-2xl font-black leading-tight text-brand-900 sm:mt-8 sm:text-4xl">{p.title}</h1>
           <p className="mt-2 text-slate-600">{cityName(p.city)}{p.district ? `, ${p.district}` : ""}</p>
+          <p className="mt-4 text-2xl font-black text-brand-500 lg:hidden">
+            {p.priceMax ? "от " : ""}{formatPrice(p.price, p.currency)}
+            {p.priceMax && <span className="ml-2 text-base font-normal text-slate-600">до {formatPrice(p.priceMax, p.currency)}</span>}
+          </p>
           {p.tags.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {p.tags.map((t) => <span key={t} className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{t}</span>)}
