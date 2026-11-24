@@ -43,6 +43,22 @@ function supabase(): Storage | null {
   };
 }
 
+/** Whether the storage answers with these credentials: HTTP status of the bucket list and whether "media" exists. */
+export async function checkStorage() {
+  const base = envByName("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL")?.replace(/\/$/, "");
+  const key = envByName("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY");
+  if (!base || !key) return { configured: false };
+  try {
+    const headers: Record<string, string> = key.startsWith("sb_") ? { apikey: key } : { Authorization: `Bearer ${key}`, apikey: key };
+    const res = await fetch(`${base}/storage/v1/bucket`, { headers, cache: "no-store", signal: AbortSignal.timeout(8000) });
+    const json: unknown = res.ok ? await res.json() : [];
+    const list = Array.isArray(json) ? (json as { id: string; public: boolean }[]) : [];
+    return { configured: true, status: res.status, bucket: list.find((b) => b.id === BUCKET)?.public ?? null };
+  } catch (err) {
+    return { configured: true, error: err instanceof Error ? err.name : "error" };
+  }
+}
+
 export function storage(): Storage {
   const s = supabase();
   if (!s) throw new Error("Photo storage is not configured (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)");
