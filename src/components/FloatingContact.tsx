@@ -19,8 +19,8 @@ export default function FloatingContact() {
       <nav aria-label="Быстрая связь" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-black/5 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <Link href="/property-turkey" className={item}><Icon d={I.grid} />Каталог</Link>
         <a href={CONTACTS.phoneHref} className={item}><Icon d={I.phone} />Позвонить</a>
-        <a href={CONTACTS.whatsapp} target="_blank" rel="noopener" className={`${item} text-[#1fa855]`}><Icon d={I.wa} />WhatsApp</a>
-        <a href={CONTACTS.telegram} target="_blank" rel="noopener" className={`${item} text-[#229ED9]`}><Icon d={I.tg} />Telegram</a>
+        <a href={CONTACTS.whatsapp} target="_blank" rel="noopener" className={`${item} text-[#128c4a]`}><Icon d={I.wa} />WhatsApp</a>
+        <a href={CONTACTS.telegram} target="_blank" rel="noopener" className={`${item} text-[#1a7fb0]`}><Icon d={I.tg} />Telegram</a>
       </nav>
       <a
         href={CONTACTS.whatsapp}

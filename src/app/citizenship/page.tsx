@@ -20,7 +20,7 @@ export default function Citizenship() {
     <div>
       <section className="bg-brand-500 py-16 text-white">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky">Программа инвестиций</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white/80">Программа инвестиций</p>
           <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Гражданство Турции через покупку недвижимости</h1>
           <p className="mt-5 max-w-2xl text-white/75">Паспорт для всей семьи, включая супругов и детей до 18 лет, при покупке недвижимости от $400 000. Без требований к проживанию и знанию языка.</p>
         </div>

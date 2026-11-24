@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CITIES, getAllProperties, toCard } from "@/lib/api";
+import { CITIES, getAllProperties, objects, toCard } from "@/lib/api";
 import PropertyCard from "@/components/PropertyCard";
 import HeroSearch from "@/components/HeroSearch";
 import LeadForm from "@/components/LeadForm";
@@ -76,7 +76,7 @@ export default async function Home() {
               )}
               <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <h3 className="text-xl font-black sm:text-2xl">{CITIES[k].ru}</h3>
-              <p className="text-sm text-white/85">{counts[k]} объектов</p>
+              <p className="text-sm text-white/85">{objects(counts[k])}</p>
               {i === 0 && <p className="mt-1 hidden max-w-sm text-sm text-white/80 sm:block">{CITIES[k].blurb}</p>}
             </Link>
           ))}
@@ -111,7 +111,7 @@ export default async function Home() {
             <Link key={c.t} href={c.href} className="group rounded-3xl bg-brand-500 p-7 text-white transition hover:bg-brand-600">
               <h3 className="text-2xl font-black">{c.t}</h3>
               <p className="mt-3 text-white/85">{c.d}</p>
-              <p className="mt-6 font-bold text-sky">{c.n} подходящих объектов →</p>
+              <p className="mt-6 font-bold text-white underline decoration-sky decoration-2 underline-offset-4">Смотреть подходящие: {c.n} →</p>
             </Link>
           ))}
         </div>
@@ -133,7 +133,7 @@ export default async function Home() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {REASONS.map((r, i) => (
               <div key={r.t}>
-                <span className="text-sm font-black text-sky">0{i + 1}</span>
+                <span className="text-sm font-black text-brand-500">0{i + 1}</span>
                 <h3 className="mt-2 font-black text-slate-900">{r.t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">{r.d}</p>
               </div>

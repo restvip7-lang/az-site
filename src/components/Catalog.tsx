@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { CITIES, type PropertyCard as Card } from "@/lib/api";
+import { CITIES, objects, type PropertyCard as Card } from "@/lib/api";
 import PropertyCard from "./PropertyCard";
 
 const PAGE = 24;
@@ -132,7 +132,7 @@ export default function Catalog({ items, types, initial }: { items: Card[]; type
             <div className="overflow-y-auto px-5 py-5">{filters}</div>
             <div className="border-t border-slate-100 p-4">
               <button type="button" onClick={() => setOpen(false)} className="w-full rounded-full bg-brand-500 py-3.5 font-bold text-white">
-                Показать {filtered.length} объектов
+                Показать: {objects(filtered.length)}
               </button>
             </div>
           </div>

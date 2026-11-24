@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { CITIES, CONTACTS, cityIn, cityName, formatPrice, getAllProperties, getPropertyDetails, getRelated, roomsLabel, toCard } from "@/lib/api";
+import { CITIES, CONTACTS, cityIn, cityName, formatPrice, getAllProperties, getPropertyDetails, getRelated, objects, roomsLabel, toCard } from "@/lib/api";
 import Catalog from "@/components/Catalog";
 import Gallery from "@/components/Gallery";
 import LeadForm from "@/components/LeadForm";
@@ -70,7 +70,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
         </h1>
         {city && CITIES[city] && !type && (
           <p className="-mt-4 mb-8 max-w-3xl text-slate-600">
-            {CITIES[city].blurb}. В каталоге AZPO {all.filter((p) => p.city === city).length} объектов в {cityIn(city)}: квартиры, виллы и новостройки от застройщиков с полным сопровождением сделки.
+            {CITIES[city].blurb}. В каталоге AZPO {objects(all.filter((p) => p.city === city).length)} в {cityIn(city)}: квартиры, виллы и новостройки от застройщиков с полным сопровождением сделки.
           </p>
         )}
         <Catalog items={all.map((p) => toCard(p, 1))} types={types} initial={r.filters} />
@@ -162,7 +162,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
             <section className="mt-10">
               <h2 className="mb-4 text-2xl font-bold text-brand-900">Инфраструктура</h2>
               <ul className="grid gap-2 sm:grid-cols-2">
-                {details.features.map((f) => <li key={f} className="flex gap-2 text-slate-700"><span className="text-sky">✓</span>{f}</li>)}
+                {details.features.map((f) => <li key={f} className="flex gap-2 text-slate-700"><span className="text-brand-500" aria-hidden>✓</span>{f}</li>)}
               </ul>
             </section>
           )}
