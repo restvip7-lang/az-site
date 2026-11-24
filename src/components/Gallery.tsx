@@ -27,10 +27,10 @@ export default function Gallery({ images, title }: { images: string[]; title: st
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [full, go]);
-  if (!n) return <div className="aspect-[16/9] rounded-2xl bg-slate-100" />;
+  if (!n) return <div className="aspect-[16/9] rounded-[36px_10px_36px_10px] bg-brand-100" />;
   return (
     <div>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100 sm:aspect-[16/10]" {...swipe}>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[30px_8px_30px_8px] bg-brand-100 sm:aspect-[16/10] sm:rounded-[56px_12px_56px_12px]" {...swipe}>
         <Image
           src={images[i]}
           alt={`${title} — фото ${i + 1}`}

@@ -119,14 +119,14 @@ export default function Catalog({ items, types, initial }: { items: Card[]; type
 
   return (
     <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-      <aside className="hidden h-fit rounded-2xl bg-white p-5 shadow-sm lg:sticky lg:top-24 lg:block" aria-label="Фильтры">{filters}</aside>
+      <aside className="hidden h-fit rounded-[30px_8px_30px_8px] bg-white p-6 shadow-[0_18px_40px_-30px_rgb(22_52_87/0.6)] lg:sticky lg:top-28 lg:block" aria-label="Фильтры">{filters}</aside>
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Фильтры">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-3xl bg-white">
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-[32px] bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-black text-brand-900">Фильтры</h2>
+              <h2 className="text-xl font-black tracking-tight text-ink">Фильтры</h2>
               <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть" className="-mr-2 p-2 text-2xl leading-none text-slate-500">×</button>
             </div>
             <div className="overflow-y-auto px-5 py-5">{filters}</div>
@@ -140,8 +140,8 @@ export default function Catalog({ items, types, initial }: { items: Card[]; type
       )}
 
       <div className="min-w-0">
-        <div className="sticky top-16 z-30 -mx-4 mb-5 flex items-center gap-2 bg-sand/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0 lg:static lg:bg-transparent lg:py-0">
-          <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-bold text-brand-700 ring-1 ring-slate-200 lg:hidden">
+        <div className="sticky top-[72px] z-30 -mx-4 mb-5 flex items-center gap-2 bg-sand/95 px-4 py-3 backdrop-blur sm:mx-0 sm:px-0 lg:static lg:bg-transparent lg:py-0">
+          <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white lg:hidden">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><path d="M3 6h18M7 12h10M10 18h4" /></svg>
             Фильтры{activeCount ? ` · ${activeCount}` : ""}
           </button>
@@ -152,7 +152,7 @@ export default function Catalog({ items, types, initial }: { items: Card[]; type
         </div>
         <p className="mb-4 text-sm text-slate-600 sm:hidden">Найдено объектов: <b className="text-slate-900">{filtered.length}</b></p>
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-600">
+          <div className="rounded-[30px_8px_30px_8px] border-2 border-dashed border-brand-500/30 bg-white p-12 text-center text-slate-600">
             По этим условиям ничего не нашлось. Попробуйте изменить фильтры или напишите нам, и мы подберём варианты вручную.
           </div>
         ) : (
@@ -162,7 +162,7 @@ export default function Catalog({ items, types, initial }: { items: Card[]; type
             </div>
             {shown < filtered.length && (
               <div className="mt-10 text-center">
-                <button type="button" onClick={() => setShown((s) => s + PAGE)} className="rounded-full bg-brand-500 px-8 py-3 text-sm font-bold text-white transition hover:bg-brand-600">
+                <button type="button" onClick={() => setShown((s) => s + PAGE)} className="btn btn-primary">
                   Показать ещё ({filtered.length - shown})
                 </button>
               </div>

@@ -16,7 +16,6 @@ export const organizationLd = {
   logo: `${SITE_URL}/brand/azpo-mark.png`,
   telephone: CONTACTS.phone.replace(/\s/g, ""),
   email: CONTACTS.email,
-  foundingDate: "2003",
   areaServed: "TR",
   sameAs: [CONTACTS.instagram, CONTACTS.youtube, CONTACTS.telegram],
   address: CONTACTS.offices.map((o) => ({
