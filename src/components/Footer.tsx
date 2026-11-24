@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Logo from "./Logo";
 import { CONTACTS } from "@/lib/api";
@@ -44,6 +45,32 @@ export default function Footer() {
             <p className="max-w-xs text-sm leading-relaxed text-white/75">
               Ваш ключ к успешным инвестициям в турецкую недвижимость с полным сопровождением.
             </p>
+
+            {/* Sister company from the original azpo.ru footer: "Другие отделы" → AZPO Health */}
+            <div className="glass max-w-xs rounded-[26px_8px_26px_8px] p-4">
+              <p className="eyebrow text-white/60">Другие отделы</p>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px_4px_12px_4px] bg-sand p-1.5">
+                  <Image src="/brand/azpo-health.webp" alt="" width={32} height={32} />
+                </span>
+                <span className="leading-none">
+                  <span className="block text-xl font-black tracking-[-0.02em]">AZPO</span>
+                  <span className="block text-xs font-bold uppercase tracking-[0.2em] text-white/80">Health</span>
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-snug text-white/80">
+                Ищете первоклассную медицинскую помощь во время отпуска в Турции?
+              </p>
+              <a
+                href="https://azpohealth.com"
+                target="_blank"
+                rel="noopener"
+                className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-sand text-sm font-black text-[#00979A] transition hover:bg-[#00979A] hover:text-white"
+              >
+                AZPOhealth.com
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><path d="M7 17 17 7M9 7h8v8" /></svg>
+              </a>
+            </div>
           </div>
           <nav aria-label="Разделы сайта">
             <h3 className="eyebrow mb-4 text-white/60">Разделы</h3>
