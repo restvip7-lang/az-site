@@ -1,25 +1,28 @@
 @import "tailwindcss";
 
+/* Brand colours from the AZPO brand book: #2E5A90 (blue) and #3FB9E7 (sky). */
 @theme {
   --color-brand-50: #eef4fb;
   --color-brand-100: #d6e4f4;
   --color-brand-500: #2e5a90;
   --color-brand-600: #254a77;
-  --color-brand-700: #1c3a5e;
-  --color-brand-900: #0f2238;
-  --color-sand: #f6f3ee;
-  --color-gold: #c9a35b;
-  --font-sans: var(--font-manrope), system-ui, sans-serif;
-  --font-display: var(--font-playfair), Georgia, serif;
+  --color-brand-700: #1f4472;
+  --color-brand-900: #163457;
+  --color-sky: #3fb9e7;
+  --color-sand: #edf4fc;
+  --font-sans: var(--font-lato), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 html { scroll-behavior: smooth; }
 body {
-  background: #ffffff;
+  background: #edf4fc;
   color: #14202e;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-.font-display { font-family: var(--font-display); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

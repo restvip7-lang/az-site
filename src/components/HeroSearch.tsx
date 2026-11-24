@@ -37,7 +37,7 @@ export default function HeroSearch({ types }: { types: string[] }) {
         <option value="">Бюджет до</option>
         {[100000, 150000, 200000, 300000, 500000, 1000000].map((v) => <option key={v} value={v}>{v.toLocaleString("ru-RU")}</option>)}
       </select>
-      <button className="rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 sm:col-span-2 lg:col-span-1">
+      <button className="rounded-full bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 sm:col-span-2 lg:col-span-1">
         Найти
       </button>
     </form>

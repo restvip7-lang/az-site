@@ -1,10 +1,13 @@
+import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { CITIES, getAllProperties, toCard } from "@/lib/api";
 import PropertyCard from "@/components/PropertyCard";
 import HeroSearch from "@/components/HeroSearch";
 import LeadForm from "@/components/LeadForm";
 
 export const revalidate = 600;
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 const REASONS = [
   { t: "С 2003 года на рынке", d: "Более 20 лет помогаем покупать недвижимость в Турции. Офисы в Алании, Анталии и Стамбуле." },
@@ -27,13 +30,12 @@ export default async function Home() {
     <>
       <section className="relative isolate overflow-hidden bg-brand-900">
         {hero?.images[0] && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero.images[0]} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-45" />
+          <Image src={hero.images[0]} alt="" fill priority fetchPriority="high" sizes="100vw" quality={60} className="-z-10 object-cover opacity-50" />
         )}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-brand-900/60 via-brand-900/40 to-brand-900/90" />
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 sm:pt-32">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-gold">Недвижимость в Турции</p>
-          <h1 className="font-display max-w-3xl text-4xl font-bold leading-tight text-white sm:text-6xl">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-sky">Недвижимость в Турции</p>
+          <h1 className="max-w-3xl text-4xl font-bold leading-tight text-white sm:text-6xl">
             Ваш ключ к успешным инвестициям в Турции
           </h1>
           <p className="mt-5 max-w-xl text-lg text-white/80">
@@ -46,19 +48,18 @@ export default async function Home() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl font-bold text-brand-900 sm:text-4xl">Направления</h2>
+            <h2 className="text-3xl font-black text-brand-900 sm:text-4xl">Направления</h2>
             <p className="mt-2 text-slate-600">Любимые города инвесторов в недвижимость Турции</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {cities.map((k, i) => (
-            <Link key={k} href={`/property-turkey?city=${k}`} className={`group relative isolate flex min-h-44 flex-col justify-end overflow-hidden rounded-2xl bg-brand-700 p-4 text-white ${i === 0 ? "col-span-2 row-span-2 min-h-80" : ""}`}>
+            <Link key={k} href={`/property-turkey/${k}`} className={`group relative isolate flex min-h-44 flex-col justify-end overflow-hidden rounded-2xl bg-brand-700 p-4 text-white ${i === 0 ? "col-span-2 row-span-2 min-h-80" : ""}`}>
               {cityImages[k] && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={cityImages[k]} alt="" loading="lazy" className="absolute inset-0 -z-10 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                <Image src={cityImages[k]!} alt="" fill sizes={i === 0 ? "(max-width: 1024px) 100vw, 50vw" : "(max-width: 1024px) 50vw, 25vw"} className="-z-10 object-cover transition duration-700 group-hover:scale-105" />
               )}
               <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-              <h3 className="font-display text-2xl font-bold">{CITIES[k].ru}</h3>
+              <h3 className="text-2xl font-bold">{CITIES[k].ru}</h3>
               <p className="text-sm text-white/80">{counts[k]} объектов</p>
               {i === 0 && <p className="mt-1 max-w-sm text-sm text-white/70">{CITIES[k].blurb}</p>}
             </Link>
@@ -66,11 +67,11 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="bg-sand py-16">
+      <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="font-display text-3xl font-bold text-brand-900 sm:text-4xl">Новые предложения</h2>
+              <h2 className="text-3xl font-bold text-brand-900 sm:text-4xl">Новые предложения</h2>
               <p className="mt-2 text-slate-600">Свежие объекты в нашем каталоге</p>
             </div>
             <Link href="/property-turkey" className="rounded-full border border-brand-500 px-5 py-2.5 text-sm font-semibold text-brand-500 transition hover:bg-brand-500 hover:text-white">
@@ -84,11 +85,11 @@ export default async function Home() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-        <h2 className="font-display mb-10 text-3xl font-bold text-brand-900 sm:text-4xl">Почему AZPO</h2>
+        <h2 className="mb-10 text-3xl font-bold text-brand-900 sm:text-4xl">Почему AZPO</h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {REASONS.map((r, i) => (
-            <div key={r.t} className="rounded-2xl border border-slate-100 p-6">
-              <span className="font-display text-3xl font-bold text-gold">0{i + 1}</span>
+            <div key={r.t} className="rounded-2xl bg-white p-6 shadow-sm">
+              <span className="text-3xl font-bold text-sky">0{i + 1}</span>
               <h3 className="mt-3 font-semibold text-slate-900">{r.t}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{r.d}</p>
             </div>
@@ -99,7 +100,7 @@ export default async function Home() {
       <section className="bg-brand-700">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2">
           <div className="text-white">
-            <h2 className="font-display text-3xl font-bold sm:text-4xl">Бесплатная консультация</h2>
+            <h2 className="text-3xl font-bold sm:text-4xl">Бесплатная консультация</h2>
             <p className="mt-4 max-w-md text-white/75">
               Расскажите, что вы ищете, и наш специалист подберёт объекты под ваш бюджет и цели: для жизни, отдыха, аренды или гражданства.
             </p>

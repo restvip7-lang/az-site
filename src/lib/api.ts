@@ -46,20 +46,25 @@ export interface Property {
   photoCount: number;
 }
 
-export const CITIES: Record<string, { ru: string; en: string; blurb: string }> = {
-  alanya: { ru: "Алания", en: "Alanya", blurb: "Курорт с самым мягким климатом и доступными ценами" },
-  antalya: { ru: "Анталия", en: "Antalya", blurb: "Столица Турецкой Ривьеры и крупный деловой центр" },
-  istanbul: { ru: "Стамбул", en: "Istanbul", blurb: "Мегаполис на двух континентах, инвестиции и бизнес" },
-  fethiye: { ru: "Фетхие", en: "Fethiye", blurb: "Бухты, горы и спокойная жизнь на Эгейском побережье" },
-  belek: { ru: "Белек", en: "Belek", blurb: "Гольф-курорт премиум-класса рядом с Анталией" },
-  mersin: { ru: "Мерсин", en: "Mersin", blurb: "Растущий портовый город с низким порогом входа" },
-  bodrum: { ru: "Бодрум", en: "Bodrum", blurb: "Яхты, виллы и турецкий Сен-Тропе" },
-  kemer: { ru: "Кемер", en: "Kemer", blurb: "Горы, сосны и чистое море" },
-  kas: { ru: "Каш", en: "Kaş", blurb: "Живописный городок для ценителей тишины" },
+export const CITIES: Record<string, { ru: string; in: string; en: string; blurb: string }> = {
+  alanya: { in: "Алании", ru: "Алания", en: "Alanya", blurb: "Курорт с самым мягким климатом и доступными ценами" },
+  antalya: { in: "Анталии", ru: "Анталия", en: "Antalya", blurb: "Столица Турецкой Ривьеры и крупный деловой центр" },
+  istanbul: { in: "Стамбуле", ru: "Стамбул", en: "Istanbul", blurb: "Мегаполис на двух континентах, инвестиции и бизнес" },
+  fethiye: { in: "Фетхие", ru: "Фетхие", en: "Fethiye", blurb: "Бухты, горы и спокойная жизнь на Эгейском побережье" },
+  belek: { in: "Белеке", ru: "Белек", en: "Belek", blurb: "Гольф-курорт премиум-класса рядом с Анталией" },
+  mersin: { in: "Мерсине", ru: "Мерсин", en: "Mersin", blurb: "Растущий портовый город с низким порогом входа" },
+  bodrum: { in: "Бодруме", ru: "Бодрум", en: "Bodrum", blurb: "Яхты, виллы и турецкий Сен-Тропе" },
+  kemer: { in: "Кемере", ru: "Кемер", en: "Kemer", blurb: "Горы, сосны и чистое море" },
+  kas: { in: "Каше", ru: "Каш", en: "Kaş", blurb: "Живописный городок для ценителей тишины" },
 };
 
 export function cityName(key: string) {
   return CITIES[key]?.ru ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/** Prepositional case: "в Алании". */
+export function cityIn(key: string) {
+  return CITIES[key]?.in ?? cityName(key);
 }
 
 export function imageUrl(fileName: string) {
@@ -113,7 +118,7 @@ export async function getProperty(id: number) {
 
 /** Lightweight version for client-side catalogue filtering. */
 export type PropertyCard = Omit<Property, "images"> & { images: string[] };
-export function toCard(p: Property, maxImages = 5): PropertyCard {
+export function toCard(p: Property, maxImages = 1): PropertyCard {
   return { ...p, images: p.images.slice(0, maxImages) };
 }
 

@@ -6,9 +6,9 @@ import { CONTACTS } from "@/lib/api";
 
 const NAV = [
   { href: "/property-turkey", label: "Каталог" },
-  { href: "/property-turkey?city=alanya", label: "Алания" },
-  { href: "/property-turkey?city=antalya", label: "Анталия" },
-  { href: "/property-turkey?city=istanbul", label: "Стамбул" },
+  { href: "/property-turkey/alanya", label: "Алания" },
+  { href: "/property-turkey/antalya", label: "Анталия" },
+  { href: "/property-turkey/istanbul", label: "Стамбул" },
   { href: "/citizenship", label: "Гражданство" },
   { href: "/about", label: "О компании" },
   { href: "/contact-us", label: "Контакты" },
@@ -17,7 +17,7 @@ const NAV = [
 export default function Header() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur rounded-b-[10px]">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="hidden items-center gap-6 lg:flex">

@@ -4,20 +4,20 @@ import { CONTACTS } from "@/lib/api";
 
 export default function Footer() {
   return (
-    <footer className="bg-brand-900 text-white/80">
+    <footer className="rounded-t-[40px] bg-brand-500 text-white/85">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
         <div className="space-y-4">
           <Logo light />
-          <p className="text-sm leading-relaxed text-white/60">
+          <p className="text-sm leading-relaxed text-white/75">
             Ваш ключ к успешным инвестициям в турецкую недвижимость с полным сопровождением.
           </p>
         </div>
         <div>
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">Навигация</h3>
           <ul className="space-y-2 text-sm">
-            <li><Link href="/property-turkey?city=alanya" className="hover:text-white">Недвижимость в Алании</Link></li>
-            <li><Link href="/property-turkey?city=antalya" className="hover:text-white">Недвижимость в Анталии</Link></li>
-            <li><Link href="/property-turkey?city=istanbul" className="hover:text-white">Недвижимость в Стамбуле</Link></li>
+            <li><Link href="/property-turkey/alanya" className="hover:text-white">Недвижимость в Алании</Link></li>
+            <li><Link href="/property-turkey/antalya" className="hover:text-white">Недвижимость в Анталии</Link></li>
+            <li><Link href="/property-turkey/istanbul" className="hover:text-white">Недвижимость в Стамбуле</Link></li>
             <li><Link href="/citizenship" className="hover:text-white">Гражданство и ВНЖ</Link></li>
             <li><Link href="/about" className="hover:text-white">О компании</Link></li>
           </ul>
@@ -44,7 +44,7 @@ export default function Footer() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">© 2003–{new Date().getFullYear()} AZPO Group</div>
+      <div className="border-t border-white/20 py-5 text-center text-xs text-white/70">© 2003–{new Date().getFullYear()} AZPO Group</div>
     </footer>
   );
 }
