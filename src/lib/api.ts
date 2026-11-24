@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 // Data access for the AZPO public catalogue API.
 // For the demo the site reads the live catalogue; later this module is the only
 // place that has to change when the data moves to a new database.
@@ -97,14 +99,23 @@ function normalise(p: RawProperty): Property {
   };
 }
 
+async function loadAllProperties(lang: string): Promise<Property[]> {
+  // The raw list is ~4 MB (every photo of every object), above the 2 MB fetch-cache limit,
+  // so we fetch it uncached and cache a slimmed version (first 8 photos per object) instead.
+  const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const json = (await res.json()) as { realEstates: RawProperty[] | null };
+  return (json.realEstates ?? [])
+    .map(normalise)
+    .map((p) => ({ ...p, images: p.images.slice(0, 8) }))
+    .sort((a, b) => b.id - a.id);
+}
+
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v1"], { revalidate: REVALIDATE, tags: ["properties"] });
+
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {
-    const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, {
-      next: { revalidate: REVALIDATE, tags: ["properties"] },
-    });
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const json = (await res.json()) as { realEstates: RawProperty[] | null };
-    return (json.realEstates ?? []).map(normalise).sort((a, b) => b.id - a.id);
+    return await cachedAll(lang);
   } catch (err) {
     console.error("Failed to load properties", err);
     return [];

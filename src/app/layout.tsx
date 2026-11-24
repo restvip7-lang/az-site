@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://api.azpo.ru" />
       </head>
-      <body className={`${lato.variable} flex min-h-screen flex-col`}>
+      <body className={`${lato.variable} flex min-h-screen flex-col pb-16 md:pb-0`}>
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2">
           Перейти к содержанию
         </a>
