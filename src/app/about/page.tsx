@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { SectionHead } from "@/components/ui";
+import { CONTACTS } from "@/lib/api";
 
 // Texts, photos and structure come from azpo.ru/about: about the company, branches, team.
 export const metadata: Metadata = {
@@ -9,8 +10,6 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
   openGraph: { images: ["/img/about/cover.webp"] },
 };
-
-const VIDEO = "https://api.azpo.ru/api/files/property-videos/azpo.rupress.mp4";
 
 const OFFICE = ["p1", "p3", "p2", "p5", "p4", "p6"].map((n) => `/img/about/office/${n}.webp`);
 const GALLERY = ["p1", "armn-1", "p2", "armn-2", "p-4", "armn-3", "p3", "armn-4", "armn-5", "p-5", "armn-6", "armn-7", "armn-8", "p-6", "armn-9", "armn-10", "armn-11", "armn-12"].map((n) => `/img/about/gallery/${n}.webp`);
@@ -130,11 +129,15 @@ export default function About() {
       {/* ───────────── Video ───────────── */}
       <section className="mx-auto max-w-7xl px-4 pt-20 sm:px-6 sm:pt-28">
         <SectionHead n="02" kicker="Вводное видео о Azpo" title={<>Этапы приобретения <span className="slant">недвижимости</span></>} align="right" />
-        <div className="relative overflow-hidden rounded-[40px_12px_40px_12px] bg-ink lg:rounded-[72px_14px_72px_14px]">
-          <video controls preload="none" poster="/img/about/video.webp" className="aspect-video w-full" playsInline>
-            <source src={VIDEO} type="video/mp4" />
-          </video>
-        </div>
+        {/* The intro video file is missing on api.azpo.ru (azpo.ru shows an empty player), so the block leads to the AZPO YouTube channel. */}
+        <a href={CONTACTS.youtube} target="_blank" rel="noopener" className="group relative block aspect-video overflow-hidden rounded-[40px_12px_40px_12px] bg-ink lg:rounded-[72px_14px_72px_14px]">
+          <Image src="/img/about/video.webp" alt="Видео о компании AZPO" fill sizes="(max-width: 1280px) 100vw, 1232px" className="object-cover transition duration-700 group-hover:scale-[1.03]" />
+          <span className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
+          <span className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[26px_8px_26px_8px] bg-white text-brand-500 shadow-2xl transition group-hover:bg-sky group-hover:text-ink sm:h-24 sm:w-24">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor" aria-hidden><path d="M8 5.5v13l11-6.5z" /></svg>
+          </span>
+          <span className="absolute bottom-5 left-6 font-black text-white sm:bottom-8 sm:left-10 sm:text-xl">Смотреть видео на YouTube-канале AZPO</span>
+        </a>
       </section>
 
       {/* ───────────── Why AZPO ───────────── */}
