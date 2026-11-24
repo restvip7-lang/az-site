@@ -121,12 +121,12 @@ export default async function Home() {
               <Link
                 key={k}
                 href={`/property-turkey/${k}`}
-                className="para-tile group relative isolate flex h-[400px] w-[74%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[30px_10px_30px_10px] bg-brand-700 p-5 text-white sm:w-[44%] lg:h-full lg:w-auto lg:flex-1 lg:rounded-none lg:px-16 lg:pb-8"
+                className="para-tile group relative isolate flex h-[400px] w-[74%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[30px_10px_30px_10px] bg-brand-700 p-5 text-white sm:w-[44%] lg:h-full lg:w-auto lg:flex-1 lg:rounded-none lg:pb-8 lg:pl-6 lg:pr-20"
               >
                 {img && <Image src={img} alt="" fill sizes="(max-width: 1024px) 75vw, 40vw" className="-z-20 object-cover transition duration-700 group-hover:scale-105" />}
                 <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent" />
                 <span className="absolute left-5 top-5 text-xs font-bold tabular-nums text-white/70 lg:left-20">0{i + 1}</span>
-                <h3 className="text-3xl font-black tracking-tight">{CITIES[k].ru}</h3>
+                <h3 className="text-3xl font-black tracking-tight lg:text-2xl">{CITIES[k].ru}</h3>
                 <p className="mt-1 text-sm font-bold text-sky">{objects(counts[k])}</p>
                 <p className="mt-2 max-w-[16rem] text-sm text-white/80 lg:max-h-0 lg:overflow-hidden lg:opacity-0 lg:transition-all lg:duration-500 lg:group-hover:max-h-24 lg:group-hover:opacity-100">{CITIES[k].blurb}</p>
               </Link>
