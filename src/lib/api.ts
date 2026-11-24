@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { connection } from "next/server";
 
 // Data access for the AZPO public catalogue API.
 // For the demo the site reads the live catalogue; later this module is the only
@@ -102,10 +103,21 @@ function normalise(p: RawProperty): Property {
 async function loadAllProperties(lang: string): Promise<Property[]> {
   // The raw list is ~4 MB (every photo of every object), above the 2 MB fetch-cache limit,
   // so we fetch it uncached and cache a slimmed version (first 8 photos per object) instead.
-  const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  const json = (await res.json()) as { realEstates: RawProperty[] | null };
-  return (json.realEstates ?? [])
+  // api.azpo.ru is in Russia and is sometimes slow from Vercel's US region: retry with a timeout.
+  let json: { realEstates: RawProperty[] | null } | null = null;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3 && !json; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      json = await res.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  // Throwing (instead of returning []) keeps an empty list out of the cache.
+  if (!json?.realEstates?.length) throw lastErr ?? new Error("API returned no objects");
+  return json.realEstates
     .map(normalise)
     .map((p) => ({ ...p, images: p.images.slice(0, 8) }))
     .sort((a, b) => b.id - a.id);
@@ -118,6 +130,9 @@ export async function getAllProperties(lang = "ru"): Promise<Property[]> {
     return await cachedAll(lang);
   } catch (err) {
     console.error("Failed to load properties", err);
+    // Opt this render out of static caching, so a failed load is never stored as an empty page:
+    // at build time the page becomes dynamic, during revalidation the previous page is kept.
+    await connection();
     return [];
   }
 }
