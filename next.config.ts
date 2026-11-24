@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "api.azpo.ru", pathname: "/api/files/**" },
       { protocol: "https", hostname: "api.azpo.com", pathname: "/api/files/**" },
+      // Photos uploaded in the admin (Supabase Storage, public bucket).
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 828, 1080, 1280, 1920],
@@ -32,7 +34,10 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+    ];
   },
   async rewrites() {
     // Sitemap children named as in the spec: /sitemap-categories-ru.xml → route handler.

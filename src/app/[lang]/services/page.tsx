@@ -3,14 +3,17 @@ import type { Metadata } from "next";
 import { alternates } from "@/lib/i18n";
 import { R } from "@/lib/routes";
 import { SERVICES } from "@/lib/services";
+import { seoFor, withSeo } from "@/lib/admin/seo";
 import { Breadcrumbs } from "@/components/catalog-blocks";
 import { Arrow } from "@/components/ui";
 
-export const metadata: Metadata = {
-  title: { absolute: "Услуги AZPO: покупка недвижимости в Турции под ключ | AZPO Estate" },
-  description: "Гражданство и ВНЖ при покупке недвижимости в Турции, юридическая проверка объекта, сервис после покупки: аренда, управление, ремонт и мебель.",
-  alternates: alternates(R.services),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return withSeo({
+    title: { absolute: "Услуги AZPO: покупка недвижимости в Турции под ключ | AZPO Estate" },
+    description: "Гражданство и ВНЖ при покупке недвижимости в Турции, юридическая проверка объекта, сервис после покупки: аренда, управление, ремонт и мебель.",
+    alternates: alternates(R.services),
+  }, await seoFor(R.services));
+}
 
 export default function Services() {
   return (

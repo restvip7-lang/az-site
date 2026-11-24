@@ -12,11 +12,13 @@ Disallow: /search/
 Disallow: /*?*sort=
 Disallow: /*?*view=
 Disallow: /api/
+Disallow: /admin/
 
 User-agent: Yandex
 ${closed}Disallow: /favorites/
 Disallow: /search/
 Disallow: /api/
+Disallow: /admin/
 Clean-param: sort&view&utm_source&utm_medium&utm_campaign&utm_content&utm_term
 
 Sitemap: ${SITE_URL}/sitemap.xml

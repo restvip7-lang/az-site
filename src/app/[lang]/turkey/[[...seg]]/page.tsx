@@ -12,6 +12,7 @@ import { alternates } from "@/lib/i18n";
 import { objectName } from "@/lib/paths";
 import { R } from "@/lib/routes";
 import { INDEXABLE, JsonLd, SITE_URL } from "@/lib/site";
+import { redirectFor, seoFor, withSeo, type SeoRow } from "@/lib/admin/seo";
 import CatalogHeader, { DEST_IMG } from "@/components/CatalogHeader";
 import CatalogListing, { type Nav } from "@/components/CatalogListing";
 import LeadForm from "@/components/LeadForm";
@@ -50,13 +51,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (title.length > 70) title = `${base} — ${price} (ID ${p.id})`;
     const desc = d.description ? d.description.replace(/\s+/g, " ").slice(0, 155).replace(/\s\S*$/, "") + "…" : `${objectH1(p)}. Цена ${price}. Фото, планировка и характеристики, проверка документов AZPO.`;
     const path = cardPath(p);
-    return {
+    return withSeo({
       title: { absolute: title },
       description: desc,
       alternates: alternates(path),
       robots: robots(true),
       openGraph: { type: "website", siteName: "AZPO Estate", locale: "ru_RU", title, description: desc, url: path, images: [{ url: `/api/og/${p.id}.jpg`, width: 1200, height: 630, alt: base }] },
-    };
+    }, await seoFor(path));
   }
 
   const q = parsed.q;
@@ -66,26 +67,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = metaTitle(q, st, geo);
   const description = metaDescription(q, st, geo);
   const path = listingPath(q);
-  return {
+  return withSeo({
     title: { absolute: title },
     description,
     alternates: alternates(path),
     // Pages 2+ are indexable with a self canonical (spec 8.2); thresholds decide the rest (spec 5.2).
     robots: robots(isIndexable(k, st.n)),
     openGraph: { type: "website", siteName: "AZPO Estate", locale: "ru_RU", title, description, url: path },
-  };
+  }, await seoFor(path));
+}
+
+/** A URL that matches nothing: a redirect from the admin, or the 404 page. */
+async function missing(seg: string[] = []): Promise<never> {
+  const to = await redirectFor(`${R.catalog}${seg.join("/")}/`);
+  if (to) permanentRedirect(to);
+  notFound();
 }
 
 export default async function Catalog({ params }: Props) {
   const { seg } = await params;
   const { all, geo, parsed } = await resolve(seg);
-  if (!parsed) notFound();
+  if (!parsed) return missing(seg);
   if (parsed.kind === "redirect") permanentRedirect(parsed.to);
 
   if (parsed.kind === "card") {
     const d = await getPropertyDetails(parsed.id);
     const listed = all.find((x) => x.id === parsed.id);
-    if (!d || !listed) notFound();
+    if (!d || !listed) return missing(seg);
     const p: Property = { ...d.property, images: d.property.images, priceEur: listed.priceEur };
     // One canonical URL per object: a moved district or a wrong path answers with a redirect.
     const canonical = cardPath(p);
@@ -94,10 +102,10 @@ export default async function Catalog({ params }: Props) {
     return <ObjectPage d={{ ...d, property: p }} all={all} geo={geo} />;
   }
 
-  return <Listing q={parsed.q} all={all} geo={geo} />;
+  return <Listing q={parsed.q} all={all} geo={geo} seo={await seoFor(listingPath(parsed.q))} />;
 }
 
-function Listing({ q, all, geo }: { q: Query; all: Property[]; geo: GeoIndex }) {
+function Listing({ q, all, geo, seo }: { q: Query; all: Property[]; geo: GeoIndex; seo: SeoRow | null }) {
   const k = kindOf(q);
   const items = select(all, q);
   const st = stats(items);
@@ -152,7 +160,7 @@ function Listing({ q, all, geo }: { q: Query; all: Property[]; geo: GeoIndex }) 
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6">
       <Breadcrumbs items={crumbs(q, geo)} current={q.page > 1 ? `Страница ${q.page}` : undefined} />
       <JsonLd data={itemListLd} />
-      <CatalogHeader title={h1(q, geo)} sub={lead(q, st, geo)} img={img} eyebrow={q.page > 1 ? `Страница ${q.page} из ${pages}` : "Каталог AZPO"} />
+      <CatalogHeader title={seo?.h1 ?? h1(q, geo)} sub={seo?.intro ?? lead(q, st, geo)} img={img} eyebrow={q.page > 1 ? `Страница ${q.page} из ${pages}` : "Каталог AZPO"} />
       {children.length > 0 && <GeoCards title={q.city ? `Районы: ${cityName(q.city)}` : "Города"} items={children} images={childImages} />}
 
       <CatalogListing key={basePath} initial={pageItems} total={items.length} page={q.page} pages={pages} basePath={basePath} nav={nav} />

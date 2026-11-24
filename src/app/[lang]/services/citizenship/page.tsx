@@ -8,16 +8,21 @@ import { alternates } from "@/lib/i18n";
 import { R } from "@/lib/routes";
 import { JsonLd } from "@/lib/site";
 import { SERVICE_BY_SLUG, serviceLd } from "@/lib/services";
+import { seoFor, withSeo } from "@/lib/admin/seo";
 import { Breadcrumbs } from "@/components/catalog-blocks";
 
 const FOR_CITIZENSHIP = listingPath({ deal: "sale", type: "apartments", feature: "citizenship" });
 
 // Texts, photos and structure come from the azpo.ru citizenship page.
-export const metadata: Metadata = {
+const META = {
   title: "Гражданство Турции за инвестиции в недвижимость",
   description: "Получите турецкое гражданство через инвестиции в недвижимость. Гарантированное получение вида на жительство и паспорта за 2 месяца.",
   alternates: alternates(R.service("citizenship")),
-};
+} satisfies Metadata;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return withSeo(META, await seoFor(R.service("citizenship")));
+}
 
 const ORBIT = [
   { t: "Получить паспорт?", href: "#form-consul", a: -62 },
@@ -91,7 +96,7 @@ export default function Citizenship() {
   return (
     <div className="overflow-x-clip">
       <JsonLd data={faqLd} />
-      <JsonLd data={serviceLd({ ...SERVICE_BY_SLUG.citizenship, description: metadata.description as string }, R.service("citizenship"))} />
+      <JsonLd data={serviceLd({ ...SERVICE_BY_SLUG.citizenship, description: META.description }, R.service("citizenship"))} />
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
         <Breadcrumbs items={[{ name: "Главная", href: R.home }, { name: "Услуги", href: R.services }, { name: "Гражданство за инвестиции", href: R.service("citizenship") }]} />
       </div>

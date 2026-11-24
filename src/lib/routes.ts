@@ -12,6 +12,7 @@ export const R = {
   team: `/${LANG}/team/`,
   member: (slug: string) => `/${LANG}/team/${slug}/`,
   reviews: `/${LANG}/reviews/`,
+  blog: `/${LANG}/blog/`,
   contacts: `/${LANG}/contacts/`,
   favorites: `/${LANG}/favorites/`,
   search: `/${LANG}/search/`,

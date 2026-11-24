@@ -7,6 +7,7 @@ import { alternates } from "@/lib/i18n";
 import { R } from "@/lib/routes";
 import { SERVICES, SERVICE_BY_SLUG, serviceLd } from "@/lib/services";
 import { JsonLd } from "@/lib/site";
+import { seoFor, withSeo } from "@/lib/admin/seo";
 import LeadForm from "@/components/LeadForm";
 import { Breadcrumbs, Faq } from "@/components/catalog-blocks";
 import { Arrow, Check, MarkShapes } from "@/components/ui";
@@ -23,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = SERVICE_BY_SLUG[(await params).slug];
   if (!s) return {};
   const url = R.service(s.slug);
-  return { title: { absolute: `${s.title} | AZPO Estate` }, description: s.description, alternates: alternates(url), openGraph: { title: s.title, description: s.description, url } };
+  return withSeo({ title: { absolute: `${s.title} | AZPO Estate` }, description: s.description, alternates: alternates(url), openGraph: { title: s.title, description: s.description, url } }, await seoFor(url));
 }
 
 /** Catalogue landings that fit each service. */
@@ -50,6 +51,7 @@ export default async function ServicePage({ params }: Props) {
   if (!s || s.slug === "citizenship") notFound();
   const url = R.service(s.slug);
   const others = SERVICES.filter((x) => x.slug !== s.slug);
+  const seo = await seoFor(url);
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6">
@@ -60,8 +62,8 @@ export default async function ServicePage({ params }: Props) {
       <section className="hatch-light relative isolate overflow-hidden rounded-[40px_12px_40px_12px] bg-brand-500 px-6 py-12 text-white sm:px-12 sm:py-16 lg:rounded-[72px_14px_72px_14px]">
         <MarkShapes light className="pointer-events-none absolute -right-16 -top-10 -z-10 w-[360px] opacity-50 sm:w-[520px]" />
         <p className="eyebrow animate-rise text-sky">Услуги AZPO</p>
-        <h1 className="mt-3 max-w-3xl animate-rise text-balance text-4xl font-black leading-[1] tracking-[-0.04em] [animation-delay:60ms] sm:text-6xl">{s.name}</h1>
-        <p className="mt-5 max-w-2xl animate-rise text-pretty text-lg text-white/85 [animation-delay:120ms]">{s.lead}</p>
+        <h1 className="mt-3 max-w-3xl animate-rise text-balance text-4xl font-black leading-[1] tracking-[-0.04em] [animation-delay:60ms] sm:text-6xl">{seo?.h1 ?? s.name}</h1>
+        <p className="mt-5 max-w-2xl animate-rise text-pretty text-lg text-white/85 [animation-delay:120ms]">{seo?.intro ?? s.lead}</p>
         <div className="mt-8 flex animate-rise flex-col gap-3 [animation-delay:180ms] sm:flex-row">
           <a href="#service-form" className="btn btn-sky">Получить консультацию <Arrow /></a>
           <a href={CONTACTS.whatsapp} target="_blank" rel="noopener" className="btn btn-ghost-light">Написать в WhatsApp</a>

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { connection } from "next/server";
 import { districtSlug } from "./geo";
 import { getEurPerUsd } from "./fx";
+import { OBJECT_FACTS, getPublishedObject, isAdminObjectId, publishedObjects, type ObjectRow } from "./admin/objects";
 
 // Data access for the AZPO public catalogue API.
 // For the demo the site reads the live catalogue; later this module is the only
@@ -110,8 +111,9 @@ async function loadAllProperties(lang: string): Promise<Property[]> {
   // Throwing (instead of returning []) keeps an empty list out of the cache.
   if (!json?.realEstates?.length) throw lastErr ?? new Error("API returned no objects");
   const eurPerUsd = await getEurPerUsd();
-  return json.realEstates
-    .map(normalise)
+  // Objects added in the admin join the catalogue; their ids (900001+) sort them first, as the newest.
+  const own = (await publishedObjects()).map(fromAdmin);
+  return [...json.realEstates.map(normalise), ...own]
     .map((p) => ({
       ...p,
       images: p.images.slice(0, 8),
@@ -120,7 +122,33 @@ async function loadAllProperties(lang: string): Promise<Property[]> {
     .sort((a, b) => b.id - a.id);
 }
 
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v2"], { revalidate: REVALIDATE, tags: ["properties"] });
+/** An object from the admin database in the shape of a catalogue object. */
+export function fromAdmin(o: ObjectRow): Property {
+  const price = o.price ? Number(o.price) : null;
+  const priceMax = o.price_max && price && Number(o.price_max) > price ? Number(o.price_max) : null;
+  return {
+    id: o.id,
+    title: o.title,
+    city: o.city,
+    district: districtSlug(o.district) ? o.district!.trim() : null,
+    districtSlug: districtSlug(o.district),
+    bedMin: o.bed_min,
+    bedMax: Math.max(o.bed_min, o.bed_max),
+    bathrooms: o.bathrooms,
+    area: o.area,
+    price,
+    priceMax,
+    currency: o.currency,
+    priceEur: null,
+    isProject: o.is_project,
+    types: [o.type],
+    tags: o.tags,
+    images: o.photos,
+    photoCount: o.photos.length,
+  };
+}
+
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v3"], { revalidate: REVALIDATE, tags: ["properties"] });
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {
@@ -183,6 +211,19 @@ export function htmlToText(html: string) {
 const dist = (v?: number | null, t?: string | null) => (v ? `${v} ${t === "km" ? "км" : "м"}` : null);
 
 export async function getPropertyDetails(id: number, lang = "ru") {
+  if (isAdminObjectId(id)) {
+    const o = await getPublishedObject(id);
+    if (!o) return null;
+    return {
+      property: fromAdmin(o),
+      prevId: null,
+      nextId: null,
+      description: o.description?.trim() || null,
+      facts: OBJECT_FACTS.map(([k, label]): [string, string | null] => [label, o.facts?.[k]?.trim() || null]),
+      features: o.developer ? [`Застройщик: ${o.developer}`] : [],
+      map: null,
+    };
+  }
   try {
     const res = await fetch(`${API_BASE}/dashboard/properties/${id}/${lang}`, { next: { revalidate: REVALIDATE } });
     if (!res.ok) return null;

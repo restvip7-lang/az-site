@@ -17,6 +17,7 @@ const BUYER: [string, string][] = [
   [R.about, "О компании"],
   [R.team, "Команда"],
   [R.reviews, "Отзывы клиентов"],
+  [R.blog, "Блог"],
   [R.contacts, "Контакты"],
 ];
 

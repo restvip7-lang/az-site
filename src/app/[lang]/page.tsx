@@ -8,6 +8,7 @@ import { alternates } from "@/lib/i18n";
 import { R } from "@/lib/routes";
 import { REVIEWS } from "@/lib/content";
 import { SERVICES } from "@/lib/services";
+import { seoFor, withSeo } from "@/lib/admin/seo";
 import PropertyCard from "@/components/PropertyCard";
 import HeroSearch, { type HeroOptions } from "@/components/HeroSearch";
 import LeadForm from "@/components/LeadForm";
@@ -22,12 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const n = all.length;
   const title = "Недвижимость в Турции: квартиры и виллы у моря | AZPO Estate";
   const description = `Купить недвижимость в Турции с AZPO Estate: ${n ? `${n} объектов` : "сотни объектов"} в Алании, Анталии и Стамбуле, юридическая проверка, гражданство и ВНЖ, сопровождение до ключей.`;
-  return {
+  return withSeo({
     title: { absolute: title },
     description,
     alternates: alternates(R.home),
     openGraph: { type: "website", title, description, url: R.home },
-  };
+  }, await seoFor(R.home));
 }
 
 const HERO_POINTS = [
@@ -118,7 +119,7 @@ function homeFaq(all: Property[]) {
 }
 
 export default async function Home() {
-  const all = await getAllProperties();
+  const [all, seo] = await Promise.all([getAllProperties(), seoFor(R.home)]);
   const geo = geoIndex(all);
   const count = (q: Omit<Query, "page">) => select(all, q).length;
   const total = all.length || 900;
@@ -174,7 +175,7 @@ export default async function Home() {
             <div className="max-w-2xl text-white">
               <p className="eyebrow animate-rise text-sky">AZPO Estate · с полным сопровождением</p>
               <h1 className="mt-4 text-balance text-[2.6rem] font-black leading-[0.95] tracking-[-0.045em] sm:text-7xl lg:text-[5.4rem]">
-                Недвижимость в Турции<span className="mt-3 block text-[0.5em] font-light leading-[1.05] tracking-[-0.03em] text-white/90">ваш ключ к успешным инвестициям</span>
+                {seo?.h1 ?? "Недвижимость в Турции"}<span className="mt-3 block text-[0.5em] font-light leading-[1.05] tracking-[-0.03em] text-white/90">ваш ключ к успешным инвестициям</span>
               </h1>
               <p className="mt-5 max-w-lg animate-rise text-pretty text-base text-white/85 [animation-delay:120ms] sm:text-xl">
                 {total}+ проверенных объектов у моря и в Стамбуле. Юристы в штате, сделка под ключ и сервис после покупки.

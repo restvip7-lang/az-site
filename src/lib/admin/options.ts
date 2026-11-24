@@ -1,0 +1,18 @@
+// Choices for the object form: cities, their districts (from the live catalogue and the geo dictionary), types.
+import "server-only";
+import { getAllProperties } from "@/lib/api";
+import { TYPES, geoIndex } from "@/lib/catalog";
+import { CITIES, districtName } from "@/lib/geo";
+import type { ObjectOptions } from "@/components/admin/ObjectForm";
+
+export async function objectOptions(): Promise<ObjectOptions> {
+  const geo = geoIndex(await getAllProperties());
+  const cities = Object.entries(CITIES).map(([key, c]) => {
+    const raw = new Map<string, string>(); // district slug → name as stored
+    for (const [slug, v] of geo.cities.get(key)?.districts ?? []) raw.set(slug, v.name);
+    for (const slug of c.order ?? []) if (!raw.has(slug)) raw.set(slug, slug);
+    const districts = [...raw].map(([slug, value]) => ({ value, label: districtName(slug, value) })).sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    return { key, name: c.ru, districts };
+  });
+  return { cities, types: TYPES.map((t) => ({ api: t.api, name: t.name })) };
+}

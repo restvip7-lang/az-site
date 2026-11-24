@@ -7,8 +7,10 @@ import { cardPath } from "./paths";
 import { R } from "./routes";
 import { SERVICES } from "./services";
 import { SITE_URL } from "./site";
+import { publishedArticles } from "./admin/articles";
+import { BLOG_CATEGORIES, blogPath } from "./blog";
 
-export const GROUPS = ["categories", "objects", "complexes", "static"] as const;
+export const GROUPS = ["categories", "objects", "complexes", "blog", "static"] as const;
 export type Group = (typeof GROUPS)[number];
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -35,6 +37,11 @@ export function sitemapIndex() {
 export async function groupPaths(group: Group): Promise<string[]> {
   if (group === "static") {
     return [R.home, R.services, ...SERVICES.map((s) => R.service(s.slug)), R.about, R.team, R.reviews, R.contacts];
+  }
+  if (group === "blog") {
+    const articles = await publishedArticles();
+    const sections = BLOG_CATEGORIES.filter((c) => articles.some((a) => a.category === c.slug)).map((c) => blogPath(c.slug));
+    return [blogPath(), ...sections, ...articles.map((a) => blogPath(a.category, a.slug))];
   }
   const all = await getAllProperties();
   if (group === "categories") {

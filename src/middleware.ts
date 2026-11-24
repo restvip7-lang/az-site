@@ -6,6 +6,10 @@ import { NextResponse, type NextRequest } from "next/server";
 // - old azpo.ru and demo URLs → 301/308 to the new structure;
 // - catalogue URLs with filter parameters → "X-Robots-Tag: noindex, follow" (their canonical is the clean URL).
 
+/** First path segments that are real routes; everything else is an old or unknown URL. */
+const TOP_LEVEL = ["ru", "admin", "sitemaps"];
+const OLD = "_old";
+
 const FILTER_PARAMS = ["price_from", "price_to", "rooms", "sort", "view", "q", "cur", "area_from", "area_to"];
 
 const LEGACY_PAGES: Record<string, string> = {
@@ -49,6 +53,9 @@ export function middleware(req: NextRequest) {
     res.headers.set("X-Robots-Tag", "noindex, follow");
     return res;
   }
+  // Any other old URL (/en/blog/…, /some-page/) goes to the /ru/ catch-all, which looks it up among
+  // the redirects set in the admin and otherwise answers with the site's 404 page.
+  if (!TOP_LEVEL.includes(parts[0])) return NextResponse.rewrite(new URL(`/ru/${OLD}${pathname}`, req.url));
   return NextResponse.next();
 }
 
