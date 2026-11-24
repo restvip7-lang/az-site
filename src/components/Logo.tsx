@@ -8,10 +8,10 @@ export default function Logo({ light = false }: { light?: boolean }) {
       <Image
         src={light ? "/brand/azpo-mark-white.png" : "/brand/azpo-mark.png"}
         alt=""
-        width={light ? 46 : 40}
+        width={40}
         height={30}
         priority
-        className="h-[30px] w-auto"
+        className="h-[30px] w-[40px] object-contain"
       />
       <span className={`text-base leading-6 ${light ? "text-white" : "text-brand-500"}`}>
         <span className="font-bold">AZPO</span>
