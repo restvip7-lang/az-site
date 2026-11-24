@@ -1,20 +1,48 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getAllProperties } from "@/lib/api";
+import { geoIndex, listingPath, popular, type LinkItem } from "@/lib/catalog";
+import { CONTACTS } from "@/lib/contacts";
+import { cityName, districtName } from "@/lib/geo";
+import { R } from "@/lib/routes";
 import Logo from "./Logo";
-import { CONTACTS } from "@/lib/api";
 import { MarkShapes } from "./ui";
 
-const NAV = [
-  ["/property-turkey", "Каталог недвижимости"],
-  ["/property-turkey/alanya", "Недвижимость в Алании"],
-  ["/property-turkey/antalya", "Недвижимость в Анталии"],
-  ["/property-turkey/istanbul", "Недвижимость в Стамбуле"],
-  ["/citizenship", "Гражданство Турции"],
-  ["/about", "О компании"],
-  ["/contact-us", "Контакты"],
+const BUYER: [string, string][] = [
+  [R.service("citizenship"), "Гражданство за инвестиции"],
+  [R.service("residence-permit"), "ВНЖ при покупке"],
+  [R.service("due-diligence"), "Юридическая проверка"],
+  [R.service("after-sales"), "Сервис после покупки"],
+  [R.complexes, "Новостройки от застройщиков"],
+  [R.about, "О компании"],
+  [R.team, "Команда"],
+  [R.reviews, "Отзывы клиентов"],
+  [R.contacts, "Контакты"],
 ];
 
-export default function Footer() {
+function Col({ title, links }: { title: string; links: [string, string][] }) {
+  return (
+    <nav aria-label={title}>
+      <h3 className="eyebrow mb-4 text-white/60">{title}</h3>
+      <ul className="space-y-2.5 text-sm">
+        {links.map(([href, label]) => (
+          <li key={href}><Link href={href} className="text-white/85 transition-colors hover:text-sky">{label}</Link></li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Mega footer (spec 6.3): top landings of Alanya, top districts, buyer pages, contacts. */
+export default async function Footer({ lang = "ru" }: { lang?: string }) {
+  const all = await getAllProperties(lang);
+  const geo = geoIndex(all);
+  const alanya: LinkItem[] = all.length ? popular(all, { city: "alanya", page: 1 }, geo).slice(0, 10) : [];
+  const districts = [...geo.cities]
+    .flatMap(([city, c]) => [...c.districts].map(([d, v]) => ({ city, d, name: v.name, count: v.count })))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
   return (
     <footer className="mt-20 px-2 pb-2 sm:px-4 sm:pb-4">
       <div className="hatch-light relative isolate mx-auto max-w-[1600px] overflow-hidden rounded-[48px_14px_0_0] bg-brand-500 text-white sm:rounded-[88px_16px_88px_16px]">
@@ -25,10 +53,10 @@ export default function Footer() {
           <div className="grid items-end gap-8 border-b border-white/15 pb-12 lg:grid-cols-[1.4fr_1fr]">
             <div>
               <p className="eyebrow text-sky">Бесплатная консультация</p>
-              <p className="mt-4 text-3xl font-black leading-[1.05] tracking-[-0.03em] sm:text-5xl">
+              <p className="mt-4 text-balance text-3xl font-black leading-[1.05] tracking-[-0.03em] sm:text-5xl">
                 Нужен безопасный выбор <span className="slant slant-white">недвижимости</span> в Турции?
               </p>
-              <p className="mt-4 max-w-xl text-white/80">
+              <p className="mt-4 max-w-xl text-pretty text-white/80">
                 Специалист AZPO сравнит районы, бюджеты и документы и пришлёт подборку в удобный мессенджер.
               </p>
             </div>
@@ -39,7 +67,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-10 md:grid-cols-[1.2fr_1fr_1.3fr_1fr]">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:grid-cols-2 sm:px-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-5">
             <Logo light />
             <p className="max-w-xs text-sm leading-relaxed text-white/75">
@@ -65,40 +93,33 @@ export default function Footer() {
                 href="https://azpohealth.com"
                 target="_blank"
                 rel="noopener"
-                className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-sand text-sm font-black text-[#00979A] transition hover:bg-[#00979A] hover:text-white"
+                className="mt-4 flex h-11 items-center justify-center gap-2 rounded-full bg-sand text-sm font-black text-[#00979A] transition-colors hover:bg-[#00979A] hover:text-white"
               >
                 AZPOhealth.com
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden><path d="M7 17 17 7M9 7h8v8" /></svg>
               </a>
             </div>
           </div>
-          <nav aria-label="Разделы сайта">
-            <h3 className="eyebrow mb-4 text-white/60">Разделы</h3>
-            <ul className="space-y-2.5 text-sm">
-              {NAV.map(([href, label]) => (
-                <li key={href}><Link href={href} className="text-white/85 transition hover:text-sky">{label}</Link></li>
+          <Col title="Недвижимость в Алании" links={alanya.map((l) => [l.href, l.label.replace(/ в Алании$/, "")])} />
+          <Col title="Районы" links={districts.map((d) => [listingPath({ city: d.city, district: d.d }), `${districtName(d.d, d.name)}, ${cityName(d.city)}`])} />
+          <Col title="Покупателю" links={BUYER} />
+          <div>
+            <h3 className="eyebrow mb-4 text-white/60">Связаться</h3>
+            <a href={CONTACTS.phoneHref} className="block text-xl font-black tabular-nums transition-colors hover:text-sky">{CONTACTS.phone}</a>
+            <a href={`mailto:${CONTACTS.email}`} className="mt-1 block text-sm text-white/80 transition-colors hover:text-sky">{CONTACTS.email}</a>
+            <ul className="mt-5 flex flex-wrap gap-2 text-sm font-bold">
+              {[["WhatsApp", CONTACTS.whatsapp], ["Telegram", CONTACTS.telegram], ["Instagram", CONTACTS.instagram], ["YouTube", CONTACTS.youtube]].map(([l, h]) => (
+                <li key={l}>
+                  <a href={h} target="_blank" rel="noopener" className="inline-block rounded-full px-3.5 py-1.5 ring-1 ring-white/30 transition-colors hover:bg-white hover:text-brand-500">{l}</a>
+                </li>
               ))}
             </ul>
-          </nav>
-          <div>
-            <h3 className="eyebrow mb-4 text-white/60">Офисы</h3>
-            <ul className="space-y-4 text-sm">
+            <h3 className="eyebrow mb-3 mt-8 text-white/60">Офисы</h3>
+            <ul className="space-y-3 text-sm">
               {CONTACTS.offices.map((o) => (
                 <li key={o.city} className="text-white/80">
                   <span className="mb-0.5 block font-black text-white">{o.city}</span>
                   {o.address}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="eyebrow mb-4 text-white/60">Связаться</h3>
-            <a href={CONTACTS.phoneHref} className="block text-xl font-black tabular-nums hover:text-sky">{CONTACTS.phone}</a>
-            <a href={`mailto:${CONTACTS.email}`} className="mt-1 block text-sm text-white/80 hover:text-sky">{CONTACTS.email}</a>
-            <ul className="mt-5 flex flex-wrap gap-2 text-sm font-bold">
-              {[["WhatsApp", CONTACTS.whatsapp], ["Telegram", CONTACTS.telegram], ["Instagram", CONTACTS.instagram], ["YouTube", CONTACTS.youtube]].map(([l, h]) => (
-                <li key={l}>
-                  <a href={h} target="_blank" rel="noopener" className="inline-block rounded-full px-3.5 py-1.5 ring-1 ring-white/30 transition hover:bg-white hover:text-brand-500">{l}</a>
                 </li>
               ))}
             </ul>

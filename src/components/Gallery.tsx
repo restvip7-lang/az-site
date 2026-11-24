@@ -51,7 +51,7 @@ export default function Gallery({ images, title }: { images: string[]; title: st
       </div>
       <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
         {images.map((src, k) => (
-          <button key={src + k} onClick={() => setI(k)} aria-label={`Фото ${k + 1}`} className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg ring-2 transition ${k === i ? "ring-brand-500" : "ring-transparent opacity-70 hover:opacity-100"}`}>
+          <button key={src + k} onClick={() => setI(k)} aria-label={`Фото ${k + 1}`} className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg ring-2 transition-[opacity,box-shadow] duration-150 ease-out ${k === i ? "ring-brand-500" : "ring-transparent opacity-70 hover:opacity-100"}`}>
             <Image src={src} alt="" width={96} height={64} sizes="96px" className="h-full w-full object-cover" />
           </button>
         ))}

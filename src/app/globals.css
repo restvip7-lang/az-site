@@ -21,12 +21,16 @@
 
   --animate-orbit: orbit 40s linear infinite;
   --animate-orbit-rev: orbit 40s linear infinite reverse;
-  --animate-rise: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-sweep: sweep 1s cubic-bezier(0.7, 0, 0.2, 1) both;
-  --animate-fade: fade 0.9s ease-out both;
+  /* Motion: transform/opacity only, ease-out for things that enter (ease-out-quint). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --animate-rise: rise 0.6s var(--ease-out) both;
+  --animate-sweep: sweep 0.9s var(--ease-in-out) both;
+  --animate-fade: fade 0.5s ease-out both;
 
   @keyframes orbit { to { transform: rotate(360deg); } }
-  @keyframes rise { from { opacity: 0; transform: translateY(28px); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+  @keyframes drop { from { opacity: 0; transform: translateY(-6px); } }
   @keyframes sweep { from { transform: translateX(-60%) skewX(-16deg); } }
   @keyframes fade { from { opacity: 0; } }
 }
@@ -83,7 +87,7 @@ body {
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
     border-radius: 999px; padding: 0.85rem 1.6rem; font-weight: 700; font-size: 0.95rem;
-    transition: transform 0.2s, background-color 0.2s, color 0.2s, box-shadow 0.2s;
+    transition: transform 160ms var(--ease-out), background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
   }
   .btn:active { transform: scale(0.97); }
   .btn-primary { background: var(--color-brand-500); color: #fff; box-shadow: 0 10px 24px -12px rgb(46 90 144 / 0.8); }
@@ -105,15 +109,21 @@ body {
 
 /* Destination tiles become slanted bars on wide screens and widen on hover. */
 @media (min-width: 1024px) {
-  .para-tile { clip-path: polygon(64px 0, 100% 0, calc(100% - 64px) 100%, 0 100%); margin-left: -52px; transition: flex-grow 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .para-tile { clip-path: polygon(64px 0, 100% 0, calc(100% - 64px) 100%, 0 100%); margin-left: -52px; transition: flex-grow 0.5s var(--ease-in-out); }
   .para-tile:first-child { margin-left: 0; }
-  .para-tile:hover, .para-tile:focus-visible { flex-grow: 2.4; }
+  .para-tile:focus-visible { flex-grow: 2.4; }
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .para-tile:hover { flex-grow: 2.4; }
 }
 
 /* Content reveals as it scrolls into view, where the browser supports scroll-driven animations. */
 @supports (animation-timeline: view()) {
-  .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 5% entry 45%; }
+  .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 5% entry 40%; }
 }
+
+/* FAQ answers ease in when a question opens (no height animation: nothing below jumps twice). */
+details[open] > :not(summary) { animation: drop 220ms var(--ease-out); }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }

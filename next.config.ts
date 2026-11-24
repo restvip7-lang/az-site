@@ -10,6 +10,16 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // One URL form everywhere: sections and cards end with "/", the other form gets a 308.
+  trailingSlash: true,
+  // …but the redirect itself is done in middleware, so that old URLs reach their target in one hop.
+  skipTrailingSlashRedirect: true,
+  experimental: { globalNotFound: true },
+  // Fonts and the photo that the share-image routes read from disk at runtime.
+  outputFileTracingIncludes: {
+    "/api/og/[file]": ["./src/fonts/og/**", "./public/img/dest/**"],
+    "/[lang]/opengraph-image": ["./src/fonts/og/**", "./public/img/dest/istanbul.webp"],
+  },
   images: {
     // Property photos are served by the AZPO backend; Next resizes them and serves AVIF/WebP.
     remotePatterns: [
@@ -24,12 +34,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
-  async redirects() {
-    return [
-      // The old site used /ru/... and /en/... prefixes; keep those links working.
-      { source: "/ru", destination: "/", permanent: true },
-      { source: "/ru/:path*", destination: "/:path*", permanent: true },
-    ];
+  async rewrites() {
+    // Sitemap children named as in the spec: /sitemap-categories-ru.xml → route handler.
+    return [{ source: "/sitemap-:name.xml", destination: "/sitemaps/:name" }];
   },
 };
 

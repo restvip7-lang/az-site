@@ -1,5 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { connection } from "next/server";
+import { districtSlug } from "./geo";
+import { getEurPerUsd } from "./fx";
 
 // Data access for the AZPO public catalogue API.
 // For the demo the site reads the live catalogue; later this module is the only
@@ -34,7 +36,8 @@ export interface Property {
   id: number;
   title: string;
   city: string; // normalised key, e.g. "alanya"
-  district: string | null;
+  district: string | null; // name as in the catalogue, e.g. "Mahmutlar"
+  districtSlug: string | null; // "mahmutlar"
   bedMin: number;
   bedMax: number;
   bathrooms: number | null;
@@ -42,6 +45,8 @@ export interface Property {
   price: number | null;
   priceMax: number | null;
   currency: "USD" | "EUR";
+  /** Price converted to euros, for "до 100 000 €" landings and statistics. */
+  priceEur: number | null;
   isProject: boolean;
   types: string[];
   tags: string[];
@@ -49,26 +54,11 @@ export interface Property {
   photoCount: number;
 }
 
-export const CITIES: Record<string, { ru: string; in: string; en: string; blurb: string }> = {
-  alanya: { in: "Алании", ru: "Алания", en: "Alanya", blurb: "Курорт с самым мягким климатом и доступными ценами" },
-  antalya: { in: "Анталии", ru: "Анталия", en: "Antalya", blurb: "Столица Турецкой Ривьеры и крупный деловой центр" },
-  istanbul: { in: "Стамбуле", ru: "Стамбул", en: "Istanbul", blurb: "Мегаполис на двух континентах, инвестиции и бизнес" },
-  fethiye: { in: "Фетхие", ru: "Фетхие", en: "Fethiye", blurb: "Бухты, горы и спокойная жизнь на Эгейском побережье" },
-  belek: { in: "Белеке", ru: "Белек", en: "Belek", blurb: "Гольф-курорт премиум-класса рядом с Анталией" },
-  mersin: { in: "Мерсине", ru: "Мерсин", en: "Mersin", blurb: "Растущий портовый город с низким порогом входа" },
-  bodrum: { in: "Бодруме", ru: "Бодрум", en: "Bodrum", blurb: "Яхты, виллы и турецкий Сен-Тропе" },
-  kemer: { in: "Кемере", ru: "Кемер", en: "Kemer", blurb: "Горы, сосны и чистое море" },
-  kas: { in: "Каше", ru: "Каш", en: "Kaş", blurb: "Живописный городок для ценителей тишины" },
-};
-
-export function cityName(key: string) {
-  return CITIES[key]?.ru ?? key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-/** Prepositional case: "в Алании". */
-export function cityIn(key: string) {
-  return CITIES[key]?.in ?? cityName(key);
-}
+export { CITIES, cityName, cityIn } from "./geo";
+export { roomsLabel } from "./paths";
+export { formatPrice, plural, objects } from "./format";
+export { CONTACTS } from "./contacts";
+import { cardPath, objectName } from "./paths";
 
 export function imageUrl(fileName: string) {
   return IMAGE_BASE + encodeURIComponent(fileName);
@@ -83,8 +73,9 @@ function normalise(p: RawProperty): Property {
   return {
     id: p.id,
     title: (p.title ?? "").trim() || `Объект ${p.id}`,
-    city: (p.location ?? "").toLowerCase(),
-    district: p.area?.trim() || null,
+    city: (p.location ?? "").trim().toLowerCase(),
+    district: districtSlug(p.area) ? p.area!.trim() : null,
+    districtSlug: districtSlug(p.area),
     bedMin,
     bedMax,
     bathrooms: p.bathroom ?? null,
@@ -92,6 +83,7 @@ function normalise(p: RawProperty): Property {
     price,
     priceMax,
     currency: p.money_type === "euro" ? "EUR" : "USD",
+    priceEur: null,
     isProject: p.is_multi === 1,
     types: (p.types ?? []).map((t) => t.name),
     tags: (p.tags ?? []).map((t) => t.name),
@@ -117,13 +109,18 @@ async function loadAllProperties(lang: string): Promise<Property[]> {
   }
   // Throwing (instead of returning []) keeps an empty list out of the cache.
   if (!json?.realEstates?.length) throw lastErr ?? new Error("API returned no objects");
+  const eurPerUsd = await getEurPerUsd();
   return json.realEstates
     .map(normalise)
-    .map((p) => ({ ...p, images: p.images.slice(0, 8) }))
+    .map((p) => ({
+      ...p,
+      images: p.images.slice(0, 8),
+      priceEur: p.price ? Math.round(p.currency === "EUR" ? p.price : p.price * eurPerUsd) : null,
+    }))
     .sort((a, b) => b.id - a.id);
 }
 
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v1"], { revalidate: REVALIDATE, tags: ["properties"] });
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v2"], { revalidate: REVALIDATE, tags: ["properties"] });
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {
@@ -142,41 +139,13 @@ export async function getProperty(id: number) {
   return all.find((p) => p.id === id) ?? null;
 }
 
-/** Lightweight version for client-side catalogue filtering. */
-export type PropertyCard = Omit<Property, "images"> & { images: string[] };
+/** Lightweight version for listings (server-rendered and client-side "show more"). */
+export type PropertyCard = Omit<Property, "images"> & { images: string[]; href: string; name: string };
 export function toCard(p: Property, maxImages = 1): PropertyCard {
-  return { ...p, images: p.images.slice(0, maxImages) };
+  return { ...p, images: p.images.slice(0, maxImages), href: cardPath(p), name: objectName(p) };
 }
 
-export function formatPrice(value: number | null, currency: "USD" | "EUR") {
-  if (!value) return "Цена по запросу";
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
-export function roomsLabel(p: Pick<Property, "bedMin" | "bedMax">) {
-  const f = (n: number) => `${n}+1`;
-  if (p.bedMax > p.bedMin) return `${f(p.bedMin)} – ${f(p.bedMax)}`;
-  return p.bedMin === 0 ? "Студия" : f(p.bedMin);
-}
-
-export const CONTACTS = {
-  phone: "+90 545 555 0 555",
-  phoneHref: "tel:+905455550555",
-  whatsapp: "https://wa.me/905455550555",
-  telegram: "https://t.me/AZPOproperties",
-  email: "info@azpo.ru",
-  instagram: "https://www.instagram.com/azpo_estate/",
-  youtube: "https://www.youtube.com/@azpogroup",
-  offices: [
-    { city: "Алания", address: "Cumhuriyet Mah., Keykubat Bulvarı 270A/14, Alanya/Antalya" },
-    { city: "Анталия", address: "Fener Mah., Bülent Ecevit Bulvarı, Özdemir Plaza № 42/1, 07230 Muratpaşa/Antalya" },
-    { city: "Стамбул", address: "Kayabaşı Mah., Adnan Menderes Bulvarı No: 5/A, Blok B3, Kat 2, Daire 12, Başakşehir/İstanbul" },
-  ],
-};
 
 interface RawDetails extends RawProperty {
   details?: string | null;
@@ -256,11 +225,3 @@ export async function getRelated(p: Property, lang = "ru") {
   }
 }
 
-/** Russian plural: plural(21, ["объект", "объекта", "объектов"]) → "объект". */
-export function plural(n: number, [one, few, many]: [string, string, string]) {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
-export const objects = (n: number) => `${n} ${plural(n, ["объект", "объекта", "объектов"])}`;

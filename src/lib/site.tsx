@@ -1,4 +1,4 @@
-import { CONTACTS } from "./api";
+import { CONTACTS } from "./contacts";
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? "https://azpo-site.vercel.app").replace(/\/$/, "");
 export const SITE_NAME = "AZPO Estate";

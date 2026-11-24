@@ -23,7 +23,7 @@ export function SectionHead({
 }) {
   const rail = <span aria-hidden className={`rail ${align === "right" ? "rail-r" : ""} ${light ? "rail-light" : ""} mb-3 hidden min-w-12 flex-1 sm:block`} />;
   return (
-    <div className="mb-8 sm:mb-12">
+    <div className="reveal mb-8 sm:mb-12">
       {(n || kicker) && (
         <p className={`eyebrow mb-3 flex items-center gap-3 ${light ? "text-sky" : "text-brand-500"} ${align === "right" ? "justify-end" : ""}`}>
           {n && <span className={`tabular-nums ${light ? "text-white/60" : "text-brand-500/60"}`}>{n}</span>}

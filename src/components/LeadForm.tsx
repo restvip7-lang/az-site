@@ -1,6 +1,6 @@
 "use client";
 import { useId, useState } from "react";
-import { CONTACTS } from "@/lib/api";
+import { CONTACTS } from "@/lib/contacts";
 
 /**
  * Demo lead form: opens WhatsApp with a pre-filled message.
@@ -15,7 +15,7 @@ export default function LeadForm({ context, dark = false }: { context?: string; 
     const text = `Здравствуйте! Меня зовут ${name}, мой телефон ${phone}.${context ? ` Интересует: ${context}.` : ""}`;
     window.open(`${CONTACTS.whatsapp}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
-  const input = `w-full rounded-full px-5 py-3.5 text-base outline-none ring-1 transition focus:ring-2 sm:text-sm ${dark ? "bg-white/10 text-white placeholder:text-white/60 ring-white/25 focus:ring-sky" : "bg-sand text-ink placeholder:text-slate-500 ring-brand-500/15 focus:ring-brand-500"}`;
+  const input = `w-full rounded-full px-5 py-3.5 text-base outline-none ring-1 transition-[box-shadow,background-color] duration-150 ease-out focus:ring-2 sm:text-sm ${dark ? "bg-white/10 text-white placeholder:text-white/60 ring-white/25 focus:ring-sky" : "bg-sand text-ink placeholder:text-slate-500 ring-brand-500/15 focus:ring-brand-500"}`;
   return (
     <form onSubmit={submit} className="space-y-3">
       <label className="sr-only" htmlFor={`${uid}-name`}>Имя</label>

@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "AZPO Estate — недвижимость в Турции",
     short_name: "AZPO Estate",
-    start_url: "/",
+    start_url: "/ru/",
     display: "standalone",
     background_color: "#edf4fc",
     theme_color: "#2e5a90",
