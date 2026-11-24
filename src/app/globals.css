@@ -35,7 +35,8 @@ html { scroll-behavior: smooth; }
 body {
   background: #edf4fc;
   color: var(--color-ink);
-  font-family: var(--font-sans);
+  /* --font-lato is defined by next/font on <body>; Tailwind drops unused theme variables, so reference it directly. */
+  font-family: var(--font-lato), system-ui, "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
