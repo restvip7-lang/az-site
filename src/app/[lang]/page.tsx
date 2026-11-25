@@ -131,6 +131,9 @@ export default async function Home() {
 
   const options: HeroOptions = {
     cities: cities.filter(([k]) => CITIES[k]).map(([k]) => ({ value: k, label: cityName(k) })),
+    districts: Object.fromEntries(cities.map(([k, c]) => [k, [...c.districts]
+      .map(([slug, d]) => ({ value: slug, label: `${districtName(slug, d.name)} (${d.count})` }))
+      .sort((a, b) => a.label.localeCompare(b.label, "ru"))])),
     types: TYPES.filter((t) => all.some((p) => p.types.includes(t.api))).map((t) => ({ value: t.slug, label: t.name, residential: t.residential })),
   };
 

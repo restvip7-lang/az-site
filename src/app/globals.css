@@ -19,6 +19,8 @@
   --color-sand: #edf4fc;
   /* Red accent for the "Под гражданство" tag (asked for by AZPO; white text on it passes AA). */
   --color-alert: #d1293d;
+  /* Orange for "Под ВНЖ", told apart from citizenship at a glance (white text passes AA). */
+  --color-permit: #b45309;
   --font-sans: var(--font-lato), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
   --animate-orbit: orbit 40s linear infinite;

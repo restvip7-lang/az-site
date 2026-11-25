@@ -1,10 +1,48 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PropertyCard as Card } from "@/lib/api";
 import { plural } from "@/lib/format";
 import { FILTER_KEYS, SORTS } from "@/lib/listing";
 import PropertyCard from "./PropertyCard";
+
+/** Tiles or a list: the visitor's choice, remembered in this browser. */
+type View = "grid" | "list";
+const VIEW_KEY = "azpo_view";
+const VIEW_EVENT = "azpo:view";
+const readView = (): View => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+};
+const saveView = (v: View) => {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch {}
+  window.dispatchEvent(new Event(VIEW_EVENT));
+};
+const onView = (cb: () => void) => {
+  window.addEventListener(VIEW_EVENT, cb);
+  return () => window.removeEventListener(VIEW_EVENT, cb);
+};
+
+function ViewToggle({ view }: { view: View }) {
+  const btn = (v: View, label: string, icon: React.ReactNode) => (
+    <button type="button" aria-pressed={view === v} aria-label={label} title={label} onClick={() => saveView(v)}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-[color,background-color] duration-150 hover:text-brand-500 aria-pressed:bg-white aria-pressed:text-brand-500 aria-pressed:shadow-[0_1px_3px_rgb(22_52_87/0.18)]">
+      {icon}
+    </button>
+  );
+  const svg = (d: string) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>;
+  return (
+    <div role="group" aria-label="Вид каталога" className="flex shrink-0 items-center gap-0.5 rounded-full bg-sand p-0.5">
+      {btn("grid", "Плиткой", svg("M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z"))}
+      {btn("list", "Списком", svg("M4 5h4v4H4zM11 6h9M11 8.5h6M4 15h4v4H4zM11 16h9M11 18.5h6"))}
+    </div>
+  );
+}
 
 export interface Option { value: string; label: string; href: string }
 export interface Nav {
@@ -36,21 +74,31 @@ export default function CatalogListing({
   const [params, setParams] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const view = useSyncExternalStore(onView, readView, () => "grid" as View);
   const firstNew = useRef(0);
+  // Only the latest request may update the list: when filters change quickly, an older, slower
+  // response (e.g. "студия" → 0 objects) must not overwrite the newer one ("любое число" → 33).
+  const pending = useRef<AbortController | null>(null);
 
   const load = useCallback(async (p: Record<string, string>, pageNo: number, append: boolean) => {
+    pending.current?.abort();
+    const ctrl = new AbortController();
+    pending.current = ctrl;
     setLoading(true);
     try {
       const qs = new URLSearchParams({ path: basePath, page: String(pageNo), ...p });
-      const res = await fetch(`/api/listing/?${qs}`);
+      const res = await fetch(`/api/listing/?${qs}`, { signal: ctrl.signal });
       const j = (await res.json()) as { items: Card[]; total: number; pages: number };
+      if (ctrl.signal.aborted) return;
       firstNew.current = append ? items.length : 0;
       setItems((cur) => (append ? [...cur, ...j.items] : j.items));
       setCount(j.total);
       setLastPage(j.pages);
       setLast(pageNo);
+    } catch (e) {
+      if (!ctrl.signal.aborted) throw e;
     } finally {
-      setLoading(false);
+      if (pending.current === ctrl) setLoading(false);
     }
   }, [basePath, items.length]);
 
@@ -73,6 +121,17 @@ export default function CatalogListing({
     const qs = new URLSearchParams(next).toString();
     window.history.replaceState(null, "", `${basePath}${qs ? `?${qs}` : ""}`);
     load(next, 1, false);
+  };
+
+  const reset = () => {
+    pending.current?.abort();
+    setLoading(false);
+    setParams({});
+    window.history.replaceState(null, "", basePath);
+    setItems(initial);
+    setCount(total);
+    setLast(page);
+    setLastPage(pages);
   };
 
   const more = async () => {
@@ -141,6 +200,13 @@ export default function CatalogListing({
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="filters" className="btn btn-primary !py-2.5 text-sm">
             Фильтры
           </button>
+          <ViewToggle view={view} />
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3 lg:hidden">
+          <p className="text-sm font-bold tabular-nums text-slate-600" aria-live="polite">
+            {loading ? "Загружаем…" : `${count} ${plural(count, ["объект", "объекта", "объектов"])}`}
+            {filtered && !loading && <button type="button" className="ml-3 text-brand-500 underline-offset-4 hover:underline" onClick={reset}>Сбросить</button>}
+          </p>
           <SortSelect value={params.sort} onChange={(v) => setParam("sort", v)} />
         </div>
         <div id="filters" className={`${open ? "mt-4 block" : "hidden"} lg:block`}>{panel}</div>
@@ -149,22 +215,26 @@ export default function CatalogListing({
             {loading ? "Загружаем…" : `${count} ${plural(count, ["объект", "объекта", "объектов"])}`}
           </p>
           <div className="flex items-center gap-3">
-            {filtered && <button type="button" className="text-sm font-bold text-brand-500 underline-offset-4 hover:underline" onClick={() => { setParams({}); window.history.replaceState(null, "", basePath); setItems(initial); setCount(total); setLast(page); setLastPage(pages); }}>Сбросить фильтры</button>}
+            {filtered && <button type="button" className="text-sm font-bold text-brand-500 underline-offset-4 hover:underline" onClick={reset}>Сбросить фильтры</button>}
+            <ViewToggle view={view} />
             <SortSelect value={params.sort} onChange={(v) => setParam("sort", v)} />
           </div>
         </div>
       </div>
 
       {items.length ? (
-        <ul className={`grid gap-5 transition-opacity duration-200 sm:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-60" : ""}`}>
+        <ul className={`grid transition-opacity duration-200 ${view === "list" ? "gap-4" : "gap-5 sm:grid-cols-2 lg:grid-cols-3"} ${loading ? "opacity-60" : ""}`}>
           {items.map((p, i) => (
             <li key={p.id} className={i >= firstNew.current && firstNew.current > 0 ? "animate-rise" : ""} style={i >= firstNew.current && firstNew.current > 0 ? { animationDelay: `${Math.min(i - firstNew.current, 8) * 40}ms` } : undefined}>
-              <PropertyCard p={p} priority={i < 3 && page === 1 && !filtered} />
+              <PropertyCard p={p} list={view === "list"} priority={i < 3 && page === 1 && !filtered} />
             </li>
           ))}
         </ul>
       ) : (
-        <p className="rounded-[28px_8px_28px_8px] bg-white p-8 text-center text-slate-600">По этим условиям объектов нет. Измените фильтры или оставьте заявку ниже, и мы подберём варианты.</p>
+        <div className="rounded-[28px_8px_28px_8px] bg-white p-8 text-center text-slate-600">
+          <p className="text-pretty">{loading ? "Загружаем…" : `По этим условиям объектов нет${total ? `, а без фильтров здесь ${total} ${plural(total, ["объект", "объекта", "объектов"])}` : ""}. Измените фильтры или оставьте заявку ниже, и мы подберём варианты.`}</p>
+          {filtered && !loading && <button type="button" onClick={reset} className="btn btn-primary mt-5 !py-2.5 text-sm">Сбросить фильтры</button>}
+        </div>
       )}
 
       {last < lastPage && (

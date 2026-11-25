@@ -12,7 +12,7 @@ import { JsonLd, SITE_URL } from "@/lib/site";
 import Gallery from "./Gallery";
 import LeadForm from "./LeadForm";
 import FavButton from "./FavButton";
-import PropertyCard from "./PropertyCard";
+import PropertyCard, { HIGHLIGHT } from "./PropertyCard";
 import { Breadcrumbs } from "./catalog-blocks";
 import { SectionHead } from "./ui";
 
@@ -137,7 +137,7 @@ export default function ObjectPage({ d, all, geo }: { d: Details; all: Property[
             <ul className="mt-5 flex flex-wrap gap-2" aria-label="Подборки с этим объектом">
               {chips.map((c) => (
                 <li key={c.href + c.label}>
-                  <Link href={c.href} className={`inline-block rounded-full px-3.5 py-2 text-xs font-bold transition-[box-shadow,color,filter] ${c.label === "Под гражданство" ? "bg-alert text-white ring-1 ring-alert hover:brightness-110" : "bg-white text-brand-500 ring-1 ring-brand-500/15 hover:ring-brand-500/50"}`}>{c.label}</Link>
+                  <Link href={c.href} className={`inline-block rounded-full px-3.5 py-2 text-xs font-bold transition-[box-shadow,color,filter] ${HIGHLIGHT[c.label] ? `${HIGHLIGHT[c.label]} hover:brightness-110` : "bg-white text-brand-500 ring-1 ring-brand-500/15 hover:ring-brand-500/50"}`}>{c.label}</Link>
                 </li>
               ))}
             </ul>

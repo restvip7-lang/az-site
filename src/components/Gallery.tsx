@@ -2,6 +2,23 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
+/** Drawn chevrons: the ‹ › glyphs sit off-centre in a circle (font metrics), an SVG centres exactly. */
+function Chevron({ dir, size = 20 }: { dir: "left" | "right"; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={dir === "left" ? "M14.5 6 8.5 12l6 6" : "M9.5 6l6 6-6 6"} />
+    </svg>
+  );
+}
+
+function Cross() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 export default function Gallery({ images, title }: { images: string[]; title: string }) {
   const [i, setI] = useState(0);
   const [full, setFull] = useState(false);
@@ -16,6 +33,8 @@ export default function Gallery({ images, title }: { images: string[]; title: st
     },
   };
   const n = images.length;
+  const arrow = "absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-brand-700 shadow-[0_4px_14px_-6px_rgb(22_52_87/0.6)] backdrop-blur transition-[background-color,scale] duration-150 ease-out hover:bg-white active:scale-95";
+  const dark = "absolute flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white transition-[background-color] duration-150 hover:bg-white/20";
   const go = useCallback((d: number) => setI((v) => (v + d + n) % n), [n]);
   useEffect(() => {
     if (!full) return;
@@ -44,8 +63,8 @@ export default function Gallery({ images, title }: { images: string[]; title: st
         <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs text-white">{i + 1} / {n}</span>
         {n > 1 && (
           <>
-            <button onClick={() => go(-1)} aria-label="Назад" className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl shadow">‹</button>
-            <button onClick={() => go(1)} aria-label="Вперёд" className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl shadow">›</button>
+            <button type="button" onClick={() => go(-1)} aria-label="Назад" className={`${arrow} left-3`}><Chevron dir="left" /></button>
+            <button type="button" onClick={() => go(1)} aria-label="Вперёд" className={`${arrow} right-3`}><Chevron dir="right" /></button>
           </>
         )}
       </div>
@@ -61,9 +80,13 @@ export default function Gallery({ images, title }: { images: string[]; title: st
           <div className="relative h-[90vh] w-[95vw]" onClick={(e) => e.stopPropagation()}>
             <Image src={images[i]} alt={`${title} — фото ${i + 1}`} fill sizes="95vw" quality={85} className="object-contain" />
           </div>
-          <button onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Назад" className="absolute left-4 top-1/2 text-5xl text-white/80">‹</button>
-          <button onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Вперёд" className="absolute right-4 top-1/2 text-5xl text-white/80">›</button>
-          <button onClick={() => setFull(false)} aria-label="Закрыть" className="absolute right-5 top-4 text-3xl text-white/80">×</button>
+          {n > 1 && (
+            <>
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Назад" className={`${dark} left-3 top-1/2 -translate-y-1/2 sm:left-5`}><Chevron dir="left" size={26} /></button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Вперёд" className={`${dark} right-3 top-1/2 -translate-y-1/2 sm:right-5`}><Chevron dir="right" size={26} /></button>
+            </>
+          )}
+          <button type="button" onClick={() => setFull(false)} aria-label="Закрыть" className={`${dark} right-3 top-3 sm:right-5 sm:top-5`}><Cross /></button>
         </div>
       )}
     </div>
