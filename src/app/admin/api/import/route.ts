@@ -3,7 +3,7 @@
 // admin page, and when that render waited on the database the whole move stood still. Every step here has
 // its own time limit and answers with an error instead of hanging.
 import { NextResponse, type NextRequest } from "next/server";
-import { currentStaff } from "@/lib/admin/auth";
+import { VIEW_ONLY, canEdit, currentStaff } from "@/lib/admin/auth";
 import { refreshCatalogue } from "@/lib/admin/catalogue";
 import { importFetched, importObjects, importPlan, missingIds } from "@/lib/admin/object-import";
 
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   if (!origin || new URL(origin).host !== req.headers.get("host")) return NextResponse.json({ error: "Запрос не со страницы админки." }, { status: 403 });
   const me = await within(currentStaff(), 15_000).catch(() => null);
   if (!me) return NextResponse.json({ error: "Войдите в админку заново." }, { status: 401 });
+  if (!canEdit(me)) return NextResponse.json({ error: VIEW_ONLY }, { status: 403 });
 
   let body: Step;
   try {

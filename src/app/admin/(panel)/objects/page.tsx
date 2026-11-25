@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
 import { OBJECTS_PER_PAGE, listObjects, objectStats, type ObjectFilter } from "@/lib/admin/objects";
 import { formatPrice } from "@/lib/format";
 import { CITIES, cityName, districtName, districtSlug } from "@/lib/geo";
@@ -16,7 +16,8 @@ export const maxDuration = 300;
 type Search = { q?: string; city?: string; status?: string; source?: string; page?: string };
 
 export default async function Objects({ searchParams }: { searchParams: Promise<Search> }) {
-  await requireStaff();
+  const me = await requireStaff();
+  const editable = canEdit(me);
   const sp = await searchParams;
   const filter: ObjectFilter = {
     q: sp.q?.slice(0, 100),
@@ -38,9 +39,9 @@ export default async function Objects({ searchParams }: { searchParams: Promise<
       <PageHead
         title="Объекты"
         sub={`Весь каталог сайта: новостройки застройщиков и отдельные объекты. Всего ${stats.total}, на сайте ${stats.published}.`}
-        action={{ href: "/admin/objects/new/", label: "+ Добавить" }}
+        action={editable ? { href: "/admin/objects/new/", label: "+ Добавить" } : undefined}
       />
-      <ObjectImport moved={stats.azpo} api={API_BASE} />
+      {editable && <ObjectImport moved={stats.azpo} api={API_BASE} />}
 
       <form className="adm-card mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]" role="search">
         <label>

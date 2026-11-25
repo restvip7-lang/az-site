@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
+import ReadOnly from "@/components/admin/ReadOnly";
 import { listSeo, normalisePath } from "@/lib/admin/seo";
 import { deleteSeoAction, saveSeoAction } from "../../actions";
 import { ActionForm, ConfirmButton, Submit } from "@/components/admin/AdminUI";
@@ -8,7 +9,7 @@ import PageHead, { fmtDate } from "@/components/admin/PageHead";
 export const metadata = { title: "SEO-тексты" };
 
 export default async function Seo({ searchParams }: { searchParams: Promise<{ path?: string }> }) {
-  await requireStaff();
+  const me = await requireStaff();
   const rows = await listSeo();
   const want = (await searchParams).path;
   const edit = want ? rows.find((r) => r.path === normalisePath(want)) : undefined;
@@ -16,6 +17,7 @@ export default async function Seo({ searchParams }: { searchParams: Promise<{ pa
   return (
     <>
       <PageHead title="SEO-тексты страниц" sub="Свой title, description, H1 и вводный текст для любой страницы сайта: подборки, районы, услуги, главная. Пустое поле — остаётся текст, который сайт составляет сам." />
+      <ReadOnly when={!canEdit(me)}>
       <section className="adm-card mb-6 max-w-3xl">
         <h2 className="adm-h2">{edit ? "Изменить" : "Добавить страницу"}</h2>
         <ActionForm key={v.path} action={saveSeoAction} className="mt-4 space-y-4">
@@ -71,6 +73,7 @@ export default async function Seo({ searchParams }: { searchParams: Promise<{ pa
           </table>
         </div>
       )}
+      </ReadOnly>
     </>
   );
 }

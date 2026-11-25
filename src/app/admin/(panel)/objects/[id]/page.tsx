@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
+import ReadOnly from "@/components/admin/ReadOnly";
 import { getObject } from "@/lib/admin/objects";
 import { objectOptions } from "@/lib/admin/options";
 import { districtSlug } from "@/lib/geo";
@@ -14,7 +15,7 @@ export const metadata = { title: "Объект" };
 const s = (v: number | string | null) => (v === null ? "" : String(Number(v)));
 
 export default async function EditObject({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string }> }) {
-  await requireStaff();
+  const me = await requireStaff();
   const id = Number((await params).id);
   const o = Number.isInteger(id) ? await getObject(id) : null;
   if (!o) notFound();
@@ -43,11 +44,13 @@ export default async function EditObject({ params, searchParams }: { params: Pro
           Сохранено.{o.published && <> <a href={url} target="_blank" rel="noopener" className="underline">Открыть на сайте ↗</a></>}
         </p>
       )}
+      <ReadOnly when={!canEdit(me)}>
       <ObjectForm key={o.updated_at.toISOString()} action={saveObjectAction} options={await objectOptions()} values={values} />
       <form action={deleteObjectAction} className="mt-10 border-t border-brand-500/10 pt-6">
         <input type="hidden" name="id" value={o.id} />
         <ConfirmButton message={`Удалить «${o.title}»${o.source ? "" : " вместе с фотографиями"}? Это нельзя отменить.${o.source ? " Объект пропадёт с сайта и не вернётся при следующем переносе с azpo.ru. Чтобы только скрыть его, снимите галочку «Опубликован»." : ""}`}>Удалить объект</ConfirmButton>
       </form>
+      </ReadOnly>
     </>
   );
 }

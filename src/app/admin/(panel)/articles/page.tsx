@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
 import { listArticles } from "@/lib/admin/articles";
 import { CATEGORY_BY_SLUG, blogPath } from "@/lib/blog";
 import { importBlogAction } from "../../actions";
@@ -11,12 +11,13 @@ export const metadata = { title: "Статьи и новости" };
 export const maxDuration = 300;
 
 export default async function Articles() {
-  await requireStaff();
+  const editable = canEdit(await requireStaff());
   const rows = await listArticles();
   const imported = rows.filter((r) => r.source_url).length;
   return (
     <>
-      <PageHead title="Статьи и новости" sub="Блог сайта: законы и оформление, гайды по районам, новости." action={{ href: "/admin/articles/new/", label: "+ Написать" }} />
+      <PageHead title="Статьи и новости" sub="Блог сайта: законы и оформление, гайды по районам, новости." action={editable ? { href: "/admin/articles/new/", label: "+ Написать" } : undefined} />
+      {editable && (
       <section className="adm-card mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="max-w-xl">
           <h2 className="adm-h2">Перенос блога с azpo.ru</h2>
@@ -26,6 +27,7 @@ export default async function Articles() {
           <Submit busy="Переношу, это займёт до минуты…">Перенести следующие 5</Submit>
         </ActionForm>
       </section>
+      )}
       {rows.length === 0 ? (
         <div className="adm-card text-slate-600">Статей пока нет.</div>
       ) : (

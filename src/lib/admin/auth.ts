@@ -43,7 +43,21 @@ export async function checkSetupCode(code: string): Promise<string | null> {
 
 const tokenHash = (t: string) => createHash("sha256").update(t).digest("hex");
 
-export interface Staff { id: number; email: string; name: string; role: "owner" | "editor" }
+export type Role = "owner" | "editor" | "viewer";
+export interface Staff { id: number; email: string; name: string; role: Role }
+
+/** The roles as staff see them, from the most rights to the least. */
+export const ROLES: { value: Role; label: string; hint: string }[] = [
+  { value: "owner", label: "Владелец", hint: "Всё, что может редактор, и управляет сотрудниками." },
+  { value: "editor", label: "Редактор", hint: "Добавляет и меняет объекты, статьи, SEO и переадресации." },
+  { value: "viewer", label: "Просмотр", hint: "Видит всю админку, но ничего не меняет." },
+];
+export const roleName = (r: Role) => ROLES.find((x) => x.value === r)?.label ?? r;
+export const isRole = (v: unknown): v is Role => ROLES.some((x) => x.value === v);
+const RANK: Record<Role, number> = { viewer: 0, editor: 1, owner: 2 };
+/** Whether this staff member may change anything (everyone but "Просмотр"). */
+export const canEdit = (s: Pick<Staff, "role">) => RANK[s.role] >= RANK.editor;
+export const VIEW_ONLY = "У вас доступ только для просмотра: изменения может вносить редактор или владелец.";
 
 export async function startSession(staffId: number) {
   const token = randomBytes(32).toString("base64url");
@@ -73,11 +87,14 @@ export async function currentStaff(): Promise<Staff | null> {
   return row ?? null;
 }
 
-/** For admin pages and actions: the signed-in staff member, or a redirect to the login page. */
-export async function requireStaff(role?: "owner"): Promise<Staff> {
+/**
+ * For admin pages and actions: the signed-in staff member, or a redirect to the login page.
+ * With a role, staff with fewer rights are sent to the start page of the admin.
+ */
+export async function requireStaff(role?: "editor" | "owner"): Promise<Staff> {
   const me = await currentStaff();
   if (!me) redirect("/admin/login/");
-  if (role && me.role !== role) redirect("/admin/");
+  if (role && RANK[me.role] < RANK[role]) redirect("/admin/");
   return me;
 }
 

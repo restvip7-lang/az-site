@@ -1,8 +1,10 @@
 import { db } from "@/lib/db";
-import { PASSWORD_MIN, requireStaff, type Staff } from "@/lib/admin/auth";
+import Link from "next/link";
+import { PASSWORD_MIN, requireStaff, roleName, type Staff } from "@/lib/admin/auth";
 import { addStaffAction, changePasswordAction, deleteStaffAction } from "../../actions";
 import { ActionForm, ConfirmButton, Submit } from "@/components/admin/AdminUI";
 import PageHead from "@/components/admin/PageHead";
+import RoleField from "@/components/admin/RoleField";
 
 export const metadata = { title: "Сотрудники" };
 
@@ -13,7 +15,7 @@ export default async function StaffPage() {
   const rows = owner ? await sql<Staff[]>`select id, email, name, role from staff order by id` : [];
   return (
     <>
-      <PageHead title="Сотрудники" sub={owner ? "Кто может входить в админку. Редактор работает с объектами, статьями и SEO; владелец ещё и добавляет сотрудников." : undefined} />
+      <PageHead title="Сотрудники" sub={owner ? "Кто может входить в админку и что может в ней делать." : undefined} />
       {owner && (
         <>
           <div className="adm-card mb-6 overflow-x-auto p-2 sm:p-3">
@@ -24,14 +26,17 @@ export default async function StaffPage() {
                   <tr key={s.id}>
                     <td className="font-bold text-ink">{s.name}{s.id === me.id && <span className="ml-2 text-xs font-normal text-slate-400">это вы</span>}</td>
                     <td>{s.email}</td>
-                    <td>{s.role === "owner" ? "Владелец" : "Редактор"}</td>
+                    <td>{roleName(s.role)}</td>
                     <td className="text-right">
-                      {s.id !== me.id && (
-                        <form action={deleteStaffAction}>
-                          <input type="hidden" name="id" value={s.id} />
-                          <ConfirmButton message={`Закрыть доступ для ${s.name}?`} className="adm-btn adm-btn-danger px-3 py-1.5 text-xs">Закрыть доступ</ConfirmButton>
-                        </form>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/admin/staff/${s.id}/`} className="adm-btn adm-btn-ghost px-3 py-1.5 text-xs">Изменить</Link>
+                        {s.id !== me.id && (
+                          <form action={deleteStaffAction}>
+                            <input type="hidden" name="id" value={s.id} />
+                            <ConfirmButton message={`Закрыть доступ для ${s.name}?`} className="adm-btn adm-btn-danger px-3 py-1.5 text-xs">Закрыть доступ</ConfirmButton>
+                          </form>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -44,7 +49,7 @@ export default async function StaffPage() {
               <label><span className="adm-label">Имя</span><input name="name" required className="adm-input" /></label>
               <label><span className="adm-label">E-mail (логин)</span><input name="email" type="email" required autoComplete="off" className="adm-input" /></label>
               <label><span className="adm-label">Пароль</span><input name="password" type="text" required minLength={PASSWORD_MIN} autoComplete="new-password" className="adm-input font-mono" /><span className="adm-hint">Не короче {PASSWORD_MIN} символов. Сотрудник сможет сменить его сам.</span></label>
-              <label><span className="adm-label">Роль</span><select name="role" defaultValue="editor" className="adm-input"><option value="editor">Редактор</option><option value="owner">Владелец</option></select></label>
+              <RoleField value="editor" />
               <div className="sm:col-span-2"><Submit>Добавить</Submit></div>
             </ActionForm>
           </section>

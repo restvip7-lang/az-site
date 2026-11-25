@@ -181,4 +181,9 @@ export const MIGRATIONS: Migration[] = [
     removed_at timestamptz not null default now()
   );
   `,
+  // 7: the "Просмотр" role (sees the admin, changes nothing).
+  `
+  alter table staff drop constraint if exists staff_role_check;
+  alter table staff add constraint staff_role_check check (role in ('owner', 'editor', 'viewer'));
+  `,
 ];

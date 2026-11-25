@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { CITIES } from "@/lib/geo";
 import { isCategory, isSlug, slugFromTitle } from "@/lib/blog";
 import { db } from "@/lib/db";
-import { checkSetupCode, endSession, hashPassword, passwordProblem, requireStaff, signIn, staffCount, startSession, verifyPassword } from "@/lib/admin/auth";
+import { VIEW_ONLY, canEdit, checkSetupCode, endSession, hashPassword, isRole, passwordProblem, requireStaff, signIn, staffCount, startSession, verifyPassword } from "@/lib/admin/auth";
 import { getObject } from "@/lib/admin/objects";
 import { refreshCatalogue } from "@/lib/admin/catalogue";
 import { getArticle } from "@/lib/admin/articles";
@@ -91,7 +91,7 @@ const list = (fd: FormData, k: string, max = 40) => [...new Set(fd.getAll(k).map
 const whole = (v: number | null) => (v === null ? null : Math.round(v));
 
 export async function saveObjectAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireStaff();
+  if (!canEdit(await requireStaff())) return { error: VIEW_ONLY };
   const id = Number(fd.get("id")) || null;
   const title = str(fd, "title");
   const city = str(fd, "city");
@@ -165,7 +165,7 @@ export async function saveObjectAction(_: FormState, fd: FormData): Promise<Form
 }
 
 export async function deleteObjectAction(fd: FormData) {
-  await requireStaff();
+  await requireStaff("editor");
   const id = Number(fd.get("id"));
   const before = id ? await getObject(id) : null;
   if (before) {
@@ -185,6 +185,7 @@ export async function deleteObjectAction(fd: FormData) {
 
 export async function saveArticleAction(_: FormState, fd: FormData): Promise<FormState> {
   const me = await requireStaff();
+  if (!canEdit(me)) return { error: VIEW_ONLY };
   const id = Number(fd.get("id")) || null;
   const title = str(fd, "title");
   const category = str(fd, "category");
@@ -245,7 +246,7 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
 }
 
 export async function deleteArticleAction(fd: FormData) {
-  await requireStaff();
+  await requireStaff("editor");
   const id = Number(fd.get("id"));
   if (id) {
     const sql = await db();
@@ -256,7 +257,7 @@ export async function deleteArticleAction(fd: FormData) {
 }
 
 export async function importBlogAction(): Promise<FormState> {
-  await requireStaff();
+  if (!canEdit(await requireStaff())) return { error: VIEW_ONLY };
   try {
     const r = await importBlog(5);
     revalidateTag("articles");
@@ -274,7 +275,7 @@ export async function importBlogAction(): Promise<FormState> {
 /* ───────────── SEO and redirects ───────────── */
 
 export async function saveSeoAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireStaff();
+  if (!canEdit(await requireStaff())) return { error: VIEW_ONLY };
   const path = normalisePath(str(fd, "path"));
   if (!/^\/ru\//.test(path)) return { error: "Адрес страницы должен начинаться с /ru/." };
   const row = { path, title: opt(fd, "title"), description: opt(fd, "description"), h1: opt(fd, "h1"), intro: opt(fd, "intro"), noindex: fd.get("noindex") === "on" };
@@ -292,7 +293,7 @@ export async function saveSeoAction(_: FormState, fd: FormData): Promise<FormSta
 }
 
 export async function deleteSeoAction(fd: FormData) {
-  await requireStaff();
+  await requireStaff("editor");
   const sql = await db();
   await sql`delete from seo_pages where path = ${str(fd, "path")}`;
   revalidateTag("seo");
@@ -300,7 +301,7 @@ export async function deleteSeoAction(fd: FormData) {
 }
 
 export async function saveRedirectAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireStaff();
+  if (!canEdit(await requireStaff())) return { error: VIEW_ONLY };
   const from = normalisePath(str(fd, "from"));
   const toRaw = str(fd, "to");
   const to = /^https?:\/\//i.test(toRaw) ? toRaw : normalisePath(toRaw);
@@ -320,7 +321,7 @@ export async function saveRedirectAction(_: FormState, fd: FormData): Promise<Fo
 }
 
 export async function deleteRedirectAction(fd: FormData) {
-  await requireStaff();
+  await requireStaff("editor");
   const sql = await db();
   await sql`delete from redirects where from_path = ${str(fd, "from")}`;
   revalidateTag("redirects");
@@ -334,7 +335,7 @@ export async function addStaffAction(_: FormState, fd: FormData): Promise<FormSt
   const name = str(fd, "name");
   const email = str(fd, "email").toLowerCase();
   const password = String(fd.get("password") ?? "");
-  const role = str(fd, "role") === "owner" ? "owner" : "editor";
+  const role = isRole(str(fd, "role")) ? str(fd, "role") : "editor";
   if (!name || !isEmail(email)) return { error: "Укажите имя и e-mail." };
   const weak = passwordProblem(password);
   if (weak) return { error: weak };
@@ -350,6 +351,42 @@ export async function addStaffAction(_: FormState, fd: FormData): Promise<FormSt
   return { ok: `Добавлен: ${name}. Передайте пароль лично, не в общем чате.` };
 }
 
+/** Changes a staff member: name, e-mail, role and, if given, a new password (their sessions then end). */
+export async function updateStaffAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireStaff("owner");
+  const id = Number(fd.get("id"));
+  const name = str(fd, "name");
+  const email = str(fd, "email").toLowerCase();
+  const password = String(fd.get("password") ?? "");
+  const role = str(fd, "role");
+  if (!id) return { error: "Сотрудник не найден." };
+  if (!name || !isEmail(email)) return { error: "Укажите имя и e-mail." };
+  if (!isRole(role)) return { error: "Выберите роль." };
+  // Your own role and password are not changed here: that way the admin always keeps an owner,
+  // and your own password is changed with the current one ("Сменить свой пароль").
+  if (id === me.id && role !== me.role) return { error: "Свою роль поменять нельзя: это может сделать другой владелец." };
+  if (id === me.id && password) return { error: "Свой пароль меняйте в разделе «Сменить свой пароль»." };
+  if (password) {
+    const weak = passwordProblem(password);
+    if (weak) return { error: weak };
+  }
+  try {
+    const sql = await db();
+    const [taken] = await sql`select 1 from staff where email = ${email} and id <> ${id}`;
+    if (taken) return { error: "Сотрудник с таким e-mail уже есть." };
+    const res = await sql`update staff set name = ${name}, email = ${email}, role = ${role} where id = ${id}`;
+    if (!res.count) return { error: "Сотрудник не найден." };
+    if (password) {
+      await sql`update staff set password_hash = ${await hashPassword(password)} where id = ${id}`;
+      await sql`delete from sessions where staff_id = ${id}`;
+    }
+  } catch (err) {
+    return dbError(err);
+  }
+  revalidatePath("/admin/staff/");
+  return { ok: password ? "Сохранено. Новый пароль передайте лично; старые входы закрыты." : "Сохранено." };
+}
+
 export async function deleteStaffAction(fd: FormData) {
   const me = await requireStaff("owner");
   const id = Number(fd.get("id"));
@@ -358,6 +395,7 @@ export async function deleteStaffAction(fd: FormData) {
     await sql`delete from staff where id = ${id}`;
   }
   revalidatePath("/admin/staff/");
+  redirect("/admin/staff/");
 }
 
 export async function changePasswordAction(_: FormState, fd: FormData): Promise<FormState> {

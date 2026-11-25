@@ -1,4 +1,5 @@
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
+import ReadOnly from "@/components/admin/ReadOnly";
 import { listRedirects } from "@/lib/admin/seo";
 import { deleteRedirectAction, saveRedirectAction } from "../../actions";
 import { ActionForm, ConfirmButton, Submit } from "@/components/admin/AdminUI";
@@ -7,11 +8,12 @@ import PageHead, { fmtDate } from "@/components/admin/PageHead";
 export const metadata = { title: "Редиректы" };
 
 export default async function Redirects() {
-  await requireStaff();
+  const me = await requireStaff();
   const rows = await listRedirects();
   return (
     <>
       <PageHead title="Редиректы (301)" sub="Если страница переехала или удалена, поставьте редирект со старого адреса на новый: посетители и поисковики попадут куда нужно. Редиректы старых адресов каталога azpo.ru сайт делает сам." />
+      <ReadOnly when={!canEdit(me)}>
       <section className="adm-card mb-6 max-w-3xl">
         <ActionForm action={saveRedirectAction} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label>
@@ -47,6 +49,7 @@ export default async function Redirects() {
           </table>
         </div>
       )}
+      </ReadOnly>
     </>
   );
 }

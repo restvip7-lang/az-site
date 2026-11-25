@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { NextResponse, type NextRequest } from "next/server";
-import { currentStaff } from "@/lib/admin/auth";
+import { VIEW_ONLY, canEdit, currentStaff } from "@/lib/admin/auth";
 import { storage } from "@/lib/admin/storage";
 
 export const runtime = "nodejs";
@@ -13,7 +13,9 @@ const FOLDERS = ["objects", "articles"];
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
   if (origin && new URL(origin).host !== req.headers.get("host")) return NextResponse.json({ error: "Чужой источник запроса" }, { status: 403 });
-  if (!(await currentStaff())) return NextResponse.json({ error: "Войдите заново" }, { status: 401 });
+  const me = await currentStaff();
+  if (!me) return NextResponse.json({ error: "Войдите заново" }, { status: 401 });
+  if (!canEdit(me)) return NextResponse.json({ error: VIEW_ONLY }, { status: 403 });
   const type = req.headers.get("content-type")?.split(";")[0] ?? "";
   if (!TYPES.includes(type)) return NextResponse.json({ error: "Нужен файл JPG, PNG или WebP" }, { status: 415 });
   const body = await req.arrayBuffer();

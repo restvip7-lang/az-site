@@ -7,7 +7,7 @@ import PageHead from "@/components/admin/PageHead";
 export const metadata = { title: "Новая статья" };
 
 export default async function NewArticle() {
-  const me = await requireStaff();
+  const me = await requireStaff("editor");
   return (
     <>
       <PageHead title="Новая статья" back={{ href: "/admin/articles/", label: "Все статьи" }} />

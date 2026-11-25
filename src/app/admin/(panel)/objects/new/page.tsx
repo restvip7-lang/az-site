@@ -9,7 +9,7 @@ export const metadata = { title: "Новый объект" };
 const none = { v: "", u: "m" as const };
 
 export default async function NewObject() {
-  await requireStaff();
+  await requireStaff("editor");
   const options = await objectOptions();
   return (
     <>

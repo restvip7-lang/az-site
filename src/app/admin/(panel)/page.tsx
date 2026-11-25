@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireStaff } from "@/lib/admin/auth";
+import { canEdit, requireStaff } from "@/lib/admin/auth";
 import { storageHost } from "@/lib/admin/storage";
 import PageHead from "@/components/admin/PageHead";
 
@@ -39,14 +39,16 @@ export default async function Dashboard() {
           </li>
         ))}
       </ul>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link href="/admin/objects/new/" className="adm-btn adm-btn-primary">+ Новостройка или объект</Link>
-        <Link href="/admin/articles/new/" className="adm-btn adm-btn-ghost">+ Статья или новость</Link>
-      </div>
+      {canEdit(me) && (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href="/admin/objects/new/" className="adm-btn adm-btn-primary">+ Новостройка или объект</Link>
+          <Link href="/admin/articles/new/" className="adm-btn adm-btn-ghost">+ Статья или новость</Link>
+        </div>
+      )}
       <section className="adm-card mt-8 max-w-3xl text-sm leading-relaxed text-slate-600">
         <h2 className="adm-h2">Как это связано с сайтом</h2>
         <ul className="mt-3 list-disc space-y-1.5 pl-5">
-          <li>Все объекты сайта редактируются в разделе «Объекты». Объекты старого каталога azpo.ru переносятся туда кнопкой «Перенести объекты»; пока объект не перенесён, сайт показывает его из старого каталога.</li>
+          <li>Все объекты сайта редактируются в разделе «Объекты», объекты azpo.ru уже перенесены туда. Новые объекты, которые ещё появятся на azpo.ru, добавляет кнопка «Проверить новые»; до этого сайт показывает их из старого каталога.</li>
           <li>Метки объекта («Вид на море», «Под гражданство»…) решают, в какие подборки он попадёт.</li>
           <li>Изменения видны на сайте примерно через минуту после сохранения.</li>
         </ul>

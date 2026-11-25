@@ -64,6 +64,9 @@ export function ensureSchema() {
         // Several instances can start at once (build workers, a cold start under load): one runs the step,
         // the others wait here and then see that it is done.
         await tx`select pg_advisory_xact_lock(727001)`;
+        // A step that changes a table waits at most 5 s for it (a stuck session reading it would otherwise
+        // hold every request of this instance); it is tried again on the next request.
+        await tx`set local lock_timeout = '5s'`;
         const [cur] = await tx`select value from schema_meta where key = 'version'`;
         if (cur && Number(cur.value) > i) return;
         if (typeof step === "string") await tx.unsafe(step);
