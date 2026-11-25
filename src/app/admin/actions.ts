@@ -3,18 +3,18 @@
 // (Next also rejects server actions posted from another origin), then revalidates the public pages it affects.
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { TYPES } from "@/lib/catalog";
 import { CITIES } from "@/lib/geo";
 import { isCategory, isSlug, slugFromTitle } from "@/lib/blog";
 import { db } from "@/lib/db";
 import { checkSetupCode, endSession, hashPassword, passwordProblem, requireStaff, signIn, staffCount, startSession, verifyPassword } from "@/lib/admin/auth";
-import { OBJECT_FACTS, getObject } from "@/lib/admin/objects";
+import { getObject } from "@/lib/admin/objects";
+import { importObjects, importPlan } from "@/lib/admin/object-import";
 import { getArticle } from "@/lib/admin/articles";
 import { importBlog } from "@/lib/admin/importer";
 import { isGeo } from "@/lib/admin/options";
 import { normalisePath } from "@/lib/admin/seo";
 import { storage } from "@/lib/admin/storage";
-import { OBJECT_TAGS, type FormState } from "@/lib/admin/forms";
+import { OBJECT_DISTANCES, type DistanceKey, type FormState } from "@/lib/admin/forms";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const opt = (fd: FormData, k: string) => str(fd, k) || null;
@@ -86,26 +86,33 @@ export async function logoutAction() {
 
 /* ───────────── Objects ───────────── */
 
+/** Checked values of a chip group: short strings, each once. */
+const list = (fd: FormData, k: string, max = 40) => [...new Set(fd.getAll(k).map((v) => String(v).trim()).filter((v) => v && v.length <= 60))].slice(0, max);
+const whole = (v: number | null) => (v === null ? null : Math.round(v));
+
 export async function saveObjectAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireStaff();
   const id = Number(fd.get("id")) || null;
   const title = str(fd, "title");
   const city = str(fd, "city");
-  const type = str(fd, "type");
   const currency = str(fd, "currency") === "USD" ? "USD" : "EUR";
-  const [bedMin, bedMax, bathrooms, area, price, priceMax] = ["bed_min", "bed_max", "bathrooms", "area", "price", "price_max"].map((k) => num(fd, k));
+  const keys = ["bed_min", "bed_max", "bathrooms", "bathrooms_max", "area", "area_max", "floor", "floors", "year", "price", "price_max"] as const;
+  const n = Object.fromEntries(keys.map((k) => [k, num(fd, k)])) as Record<(typeof keys)[number], number | null>;
+  const dist = Object.fromEntries(OBJECT_DISTANCES.map(([k]) => [k, num(fd, `dist_${k}`)])) as Record<DistanceKey, number | null>;
   if (!title) return { error: "Укажите название." };
   if (!CITIES[city]) return { error: "Выберите город." };
-  if (!TYPES.some((t) => t.api === type)) return { error: "Выберите тип недвижимости." };
-  if ([bedMin, bedMax, bathrooms, area, price, priceMax].some((v) => Number.isNaN(v))) return { error: "Числа (спальни, площадь, цена) — только цифрами." };
-  const tags = fd.getAll("tags").map(String).filter((t) => OBJECT_TAGS.includes(t));
-  const facts = Object.fromEntries(OBJECT_FACTS.map(([k]) => [k, str(fd, `fact_${k}`)]).filter(([, v]) => v));
+  if ([...Object.values(n), ...Object.values(dist)].some((v) => Number.isNaN(v))) return { error: "Числа (цена, спальни, площадь, этажи, расстояния) — только цифрами." };
+  if (n.year !== null && (n.year < 1900 || n.year > 2100)) return { error: "Год — четыре цифры, например 2026." };
+  const mapUrl = opt(fd, "map_url");
+  if (mapUrl && !/^https?:\/\/\S+$/.test(mapUrl)) return { error: "Ссылка на карту должна начинаться с https://" };
   let photos: string[] = [];
   try {
-    photos = (JSON.parse(String(fd.get("photos") || "[]")) as unknown[]).filter(isPhotoUrl).slice(0, 60);
+    photos = (JSON.parse(String(fd.get("photos") || "[]")) as unknown[]).filter(isPhotoUrl).slice(0, 120);
   } catch {}
   const published = fd.get("published") === "on";
   if (published && !photos.length) return { error: "Чтобы опубликовать объект, добавьте хотя бы одно фото." };
+  const bedMin = whole(n.bed_min);
+  const range = (min: number | null, max: number | null) => (max !== null && min !== null && max > min ? whole(max) : null);
   const row = {
     published,
     is_project: fd.get("is_project") === "1",
@@ -113,17 +120,29 @@ export async function saveObjectAction(_: FormState, fd: FormData): Promise<Form
     developer: opt(fd, "developer"),
     city,
     district: opt(fd, "district"),
-    type,
-    bed_min: Math.round(bedMin ?? 0),
-    bed_max: Math.round(Math.max(bedMin ?? 0, bedMax ?? 0)),
-    bathrooms: bathrooms === null ? null : Math.round(bathrooms),
-    area: area === null ? null : Math.round(area),
-    price,
-    price_max: priceMax,
+    types: list(fd, "types"),
+    layouts: list(fd, "layouts"),
+    bed_min: bedMin,
+    bed_max: Math.max(bedMin ?? 0, whole(n.bed_max) ?? 0),
+    bathrooms: whole(n.bathrooms),
+    bathrooms_max: range(n.bathrooms, n.bathrooms_max),
+    area: whole(n.area),
+    area_max: range(n.area, n.area_max),
+    floor: whole(n.floor),
+    floors: whole(n.floors),
+    year: whole(n.year),
+    furnished: fd.get("furnished") === "on",
+    installments: opt(fd, "installments"),
+    price: n.price,
+    price_max: n.price_max !== null && n.price !== null && n.price_max > n.price ? n.price_max : null,
     currency,
-    tags,
-    description: opt(fd, "description"),
-    facts,
+    tags: list(fd, "tags"),
+    features: list(fd, "features", 60),
+    views: list(fd, "views"),
+    heating: list(fd, "heating"),
+    ...Object.fromEntries(OBJECT_DISTANCES.flatMap(([k]) => [[`dist_${k}`, dist[k]], [`dist_${k}_unit`, str(fd, `dist_${k}_unit`) === "km" ? "km" : "m"]])),
+    map_url: mapUrl,
+    description: opt(fd, "description")?.replace(/\r\n?/g, "\n") ?? null,
     photos,
   };
   let savedId = id;
@@ -151,11 +170,40 @@ export async function deleteObjectAction(fd: FormData) {
   const before = id ? await getObject(id) : null;
   if (before) {
     const sql = await db();
-    await sql`delete from objects where id = ${id}`;
+    await sql.begin(async (tx) => {
+      await tx`delete from objects where id = ${id}`;
+      // An object of the old catalogue: remember it, so that it does not come back from azpo.ru.
+      if (before.source) await tx`insert into objects_removed (id) values (${id}) on conflict do nothing`;
+    });
     await dropPhotos(before.photos);
     revalidateTag("properties");
   }
   redirect("/admin/objects/");
+}
+
+/** Step 1 of the move from azpo.ru: which objects are still to be moved. */
+export async function objectImportPlanAction(): Promise<{ error: string } | { total: number; missing: number[] }> {
+  await requireStaff();
+  try {
+    return await importPlan();
+  } catch (err) {
+    console.error(err);
+    return { error: `Не удалось получить каталог azpo.ru: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+/** Step 2, repeated by the page: moves one batch of objects. */
+export async function objectImportBatchAction(ids: number[]): Promise<{ error: string } | { imported: number; failed: number[] }> {
+  await requireStaff();
+  if (!Array.isArray(ids)) return { error: "Нет списка объектов." };
+  try {
+    const r = await importObjects(ids.map(Number));
+    if (r.imported) revalidateTag("properties");
+    return r;
+  } catch (err) {
+    console.error(err);
+    return { error: `Перенос прервался: ${err instanceof Error ? err.message : String(err)}` };
+  }
 }
 
 /* ───────────── Articles ───────────── */

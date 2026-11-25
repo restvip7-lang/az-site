@@ -74,8 +74,8 @@ export default function ObjectPage({ d, all, geo }: { d: Details; all: Property[
     ["Район", p.districtSlug ? districtName(p.districtSlug, p.district) : null],
     ["Тип", t?.sg ?? (p.isProject ? "Проект застройщика" : null)],
     ["Планировка", roomsLabel(p) || null],
-    ["Площадь", p.area ? `${p.area} м²` : null],
-    ["Санузлы", p.bathrooms ? String(p.bathrooms) : null],
+    ["Площадь", p.area ? `${p.areaMax ? `${p.area}–${p.areaMax}` : p.area} м²` : null],
+    ["Санузлы", p.bathrooms ? (p.bathroomsMax ? `${p.bathrooms}–${p.bathroomsMax}` : String(p.bathrooms)) : null],
     ["Статус", p.tags.includes("Новостройка") || p.isProject ? "Новостройка" : p.tags.includes("Вторичное жилье") ? "Вторичное жильё" : null],
     ...d.facts,
   ];

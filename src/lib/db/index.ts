@@ -57,6 +57,11 @@ export function ensureSchema() {
     for (const [i, step] of MIGRATIONS.entries()) {
       if (i < version) continue;
       await db.begin(async (tx) => {
+        // Several instances can start at once (build workers, a cold start under load): one runs the step,
+        // the others wait here and then see that it is done.
+        await tx`select pg_advisory_xact_lock(727001)`;
+        const [cur] = await tx`select value from schema_meta where key = 'version'`;
+        if (cur && Number(cur.value) > i) return;
         if (typeof step === "string") await tx.unsafe(step);
         else await step(tx);
         await tx`insert into schema_meta (key, value) values ('version', ${String(i + 1)})

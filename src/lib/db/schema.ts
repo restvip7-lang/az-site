@@ -131,4 +131,54 @@ export const MIGRATIONS: Migration[] = [
         where category = 'area-guides' and slug = ${f.slug} and position(${f.from} in ${col}) > 0 and position(${f.to} in ${col}) = 0`;
     }
   },
+
+  // Objects get every field of the AZPO catalogue (so its objects can be moved into the admin and edited there):
+  // several types, ranges, floor, distances with units, infrastructure, views, heating, layouts, map link.
+  // The free-form "facts" move into their own columns. An empty bedroom count now means "unknown".
+  // objects_removed remembers deleted catalogue objects, so neither the import nor the live catalogue brings them back.
+  `
+  alter table objects
+    add column if not exists source text,
+    add column if not exists types text[] not null default '{}',
+    add column if not exists layouts text[] not null default '{}',
+    add column if not exists bathrooms_max int,
+    add column if not exists area_max int,
+    add column if not exists floor int,
+    add column if not exists floors int,
+    add column if not exists year int,
+    add column if not exists furnished boolean not null default false,
+    add column if not exists installments text,
+    add column if not exists dist_sea numeric,
+    add column if not exists dist_sea_unit text not null default 'm' check (dist_sea_unit in ('m', 'km')),
+    add column if not exists dist_airport numeric,
+    add column if not exists dist_airport_unit text not null default 'km' check (dist_airport_unit in ('m', 'km')),
+    add column if not exists dist_hospital numeric,
+    add column if not exists dist_hospital_unit text not null default 'km' check (dist_hospital_unit in ('m', 'km')),
+    add column if not exists dist_shopping numeric,
+    add column if not exists dist_shopping_unit text not null default 'm' check (dist_shopping_unit in ('m', 'km')),
+    add column if not exists features text[] not null default '{}',
+    add column if not exists views text[] not null default '{}',
+    add column if not exists heating text[] not null default '{}',
+    add column if not exists map_url text;
+
+  update objects set
+    types = array[type],
+    year = substring(facts->>'year' from '\\d{4}')::int,
+    floors = substring(facts->>'floors' from '\\d+')::int,
+    furnished = coalesce(facts->>'furniture', '') ~* '^\\s*с мебел',
+    installments = nullif(trim(facts->>'installments'), ''),
+    dist_sea = replace(substring(facts->>'sea' from '\\d+(?:[.,]\\d+)?'), ',', '.')::numeric,
+    dist_sea_unit = case when facts->>'sea' ~* 'км' then 'km' else 'm' end,
+    dist_airport = replace(substring(facts->>'airport' from '\\d+(?:[.,]\\d+)?'), ',', '.')::numeric,
+    dist_airport_unit = case when facts->>'airport' ~* '(^|\\d|\\s)м\\s*$' then 'm' else 'km' end;
+
+  alter table objects alter column bed_min drop not null, alter column bed_min drop default;
+  alter table objects drop column type, drop column facts;
+  create index if not exists objects_published on objects (published);
+
+  create table if not exists objects_removed (
+    id int primary key,
+    removed_at timestamptz not null default now()
+  );
+  `,
 ];

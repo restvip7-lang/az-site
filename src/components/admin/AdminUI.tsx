@@ -55,7 +55,7 @@ export function ConfirmButton({ children, message, className = "adm-btn adm-btn-
 
 const NAV: [string, string][] = [
   ["/admin/", "Обзор"],
-  ["/admin/objects/", "Новостройки и объекты"],
+  ["/admin/objects/", "Объекты"],
   ["/admin/articles/", "Статьи и новости"],
   ["/admin/seo/", "SEO-тексты"],
   ["/admin/redirects/", "Редиректы"],

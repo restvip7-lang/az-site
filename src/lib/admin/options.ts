@@ -1,7 +1,7 @@
-// Choices for the object form: cities, their districts (from the live catalogue and the geo dictionary), types.
+// Choices for the object form: cities and their districts (from the live catalogue and the geo dictionary).
 import "server-only";
 import { getAllProperties } from "@/lib/api";
-import { TYPES, geoIndex } from "@/lib/catalog";
+import { geoIndex } from "@/lib/catalog";
 import { CITIES, districtName } from "@/lib/geo";
 import type { ObjectOptions } from "@/components/admin/ObjectForm";
 
@@ -14,7 +14,7 @@ export async function objectOptions(): Promise<ObjectOptions> {
     const districts = [...raw].map(([slug, value]) => ({ value, label: districtName(slug, value) })).sort((a, b) => a.label.localeCompare(b.label, "ru"));
     return { key, name: c.ru, districts };
   });
-  return { cities, types: TYPES.map((t) => ({ api: t.api, name: t.name })) };
+  return { cities };
 }
 
 /** Places an article can be about: "alanya" (the whole city) or "alanya/mahmutlar". */

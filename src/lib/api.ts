@@ -2,36 +2,17 @@ import { unstable_cache } from "next/cache";
 import { connection } from "next/server";
 import { districtSlug } from "./geo";
 import { getEurPerUsd } from "./fx";
-import { OBJECT_FACTS, getPublishedObject, isAdminObjectId, publishedObjects, type ObjectRow } from "./admin/objects";
+import { catalogueObjects, siteObject, type CatalogueRow, type ObjectRow } from "./admin/objects";
+import { API_BASE, layoutBeds, rowFromAzpo, type AzpoObject } from "./azpo-feed";
 
-// Data access for the AZPO public catalogue API.
-// For the demo the site reads the live catalogue; later this module is the only
-// place that has to change when the data moves to a new database.
+export { API_BASE, IMAGE_BASE, imageUrl, htmlToText } from "./azpo-feed";
 
-export const API_BASE = process.env.AZPO_API_BASE ?? "https://api.azpo.ru/api";
-export const IMAGE_BASE = `${API_BASE}/files/property-images/`;
+// Data access for the catalogue. Objects live in the admin database; objects of the old azpo.ru catalogue
+// (its public API) that have not been moved into the admin yet are still read from there.
+
 const REVALIDATE = 600; // seconds
 
 export type Currency = "dollar" | "euro" | string;
-
-export interface RawProperty {
-  id: number;
-  title: string | null;
-  bed_room: string | null;
-  max_bed: number | null;
-  bathroom: number | null;
-  metrage: number | null;
-  price: number | null;
-  price_min: number | null;
-  price_max: number | null;
-  area: string | null;
-  location: string | null;
-  money_type: Currency;
-  is_multi: number | null;
-  images: { id: number; file_name: string; image_order: number }[];
-  types?: { name: string; type_id: number }[];
-  tags?: { name: string; tag_id: number }[];
-}
 
 export interface Property {
   id: number;
@@ -47,6 +28,9 @@ export interface Property {
   studio: boolean;
   bathrooms: number | null;
   area: number | null;
+  /** Largest layout of a project, m². */
+  areaMax: number | null;
+  bathroomsMax: number | null;
   price: number | null;
   priceMax: number | null;
   currency: "USD" | "EUR";
@@ -65,10 +49,6 @@ export { formatPrice, plural, objects } from "./format";
 export { CONTACTS } from "./contacts";
 import { cardPath, objectName } from "./paths";
 
-export function imageUrl(fileName: string) {
-  return IMAGE_BASE + encodeURIComponent(fileName);
-}
-
 /** "Студия 1+0", "0+1", "студии": a studio whatever bed_room says ("10+1" is not one). */
 const STUDIO = /студи|(?:^|\D)(?:1\+0|0\+1)(?!\d)/i;
 /** "Квартиры 1+1 и 2+1" → [1, 2]: layouts written in the title. */
@@ -76,20 +56,20 @@ const titleRooms = (t: string) => [...t.matchAll(/(?:^|\D)(\d{1,2})\+[0-3](?!\d)
 
 /**
  * Bedrooms: the feed's bed_room is often empty (most projects), and studios are entered as "1+0"
- * with bed_room 1. An empty count is taken from the title when it names layouts, otherwise it stays unknown.
+ * with bed_room 1. An empty count is taken from the layouts or the title when they name them, otherwise it stays unknown.
  */
-function bedrooms(p: RawProperty, title: string) {
-  const raw = String(p.bed_room ?? "").trim();
+function bedrooms(raw: string, maxBed: number, title: string, layouts: string[] = []) {
   let bedKnown = raw !== "" && Number.isFinite(Number(raw));
   let bedMin = bedKnown ? Math.max(0, Number(raw)) : 0;
-  let bedMax = Math.max(bedMin, Number(p.max_bed ?? 0) || 0);
-  const named = bedKnown ? [] : titleRooms(title);
+  let bedMax = Math.max(bedMin, maxBed || 0);
+  const fromLayouts = layouts.map(layoutBeds).filter((n) => Number.isFinite(n));
+  const named = bedKnown ? [] : fromLayouts.length ? fromLayouts : titleRooms(title);
   if (named.length) {
     bedMin = Math.min(...named);
     bedMax = Math.max(bedMax, ...named);
     bedKnown = true;
   }
-  const studio = STUDIO.test(title) || (bedKnown && bedMin === 0);
+  const studio = STUDIO.test(title) || fromLayouts.includes(0) || (bedKnown && bedMin === 0);
   if (studio) {
     bedMin = 0;
     if (bedMax <= 1) bedMax = 0;
@@ -98,56 +78,38 @@ function bedrooms(p: RawProperty, title: string) {
   return { bedMin, bedMax, bedKnown, studio };
 }
 
-function normalise(p: RawProperty): Property {
-  const sorted = [...(p.images ?? [])].sort((a, b) => a.image_order - b.image_order || a.id - b.id);
-  const { bedMin, bedMax, bedKnown, studio } = bedrooms(p, (p.title ?? "").trim());
-  const price = p.price_min || p.price || null;
-  const priceMax = p.price_max && price && p.price_max > price ? p.price_max : null;
-  return {
-    id: p.id,
-    title: (p.title ?? "").trim() || `Объект ${p.id}`,
-    city: (p.location ?? "").trim().toLowerCase(),
-    district: districtSlug(p.area) ? p.area!.trim() : null,
-    districtSlug: districtSlug(p.area),
-    bedMin,
-    bedMax,
-    bedKnown,
-    studio,
-    bathrooms: p.bathroom ?? null,
-    area: p.metrage ?? null,
-    price,
-    priceMax,
-    currency: p.money_type === "euro" ? "EUR" : "USD",
-    priceEur: null,
-    isProject: p.is_multi === 1,
-    types: (p.types ?? []).map((t) => t.name),
-    tags: (p.tags ?? []).map((t) => t.name),
-    images: sorted.map((i) => imageUrl(i.file_name)),
-    photoCount: sorted.length,
-  };
-}
-
-async function loadAllProperties(lang: string): Promise<Property[]> {
+/** The old azpo.ru catalogue (public API). */
+async function loadFeed(lang: string): Promise<AzpoObject[]> {
   // The raw list is ~4 MB (every photo of every object), above the 2 MB fetch-cache limit,
   // so we fetch it uncached and cache a slimmed version (first 8 photos per object) instead.
   // api.azpo.ru is in Russia and is sometimes slow from Vercel's US region: retry with a timeout.
-  let json: { realEstates: RawProperty[] | null } | null = null;
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 3 && !json; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
       if (!res.ok) throw new Error(`API ${res.status}`);
-      json = await res.json();
+      const json = (await res.json()) as { realEstates: AzpoObject[] | null };
+      if (json.realEstates?.length) return json.realEstates;
+      lastErr = new Error("API returned no objects");
     } catch (err) {
       lastErr = err;
     }
   }
-  // Throwing (instead of returning []) keeps an empty list out of the cache.
-  if (!json?.realEstates?.length) throw lastErr ?? new Error("API returned no objects");
+  throw lastErr;
+}
+
+async function loadAllProperties(lang: string): Promise<Property[]> {
+  const [feed, own] = await Promise.all([loadFeed(lang).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err)))), catalogueObjects()]);
+  if (feed instanceof Error) {
+    // Before anything has been moved into the admin the old catalogue is the catalogue: throwing keeps
+    // an empty list out of the cache. Afterwards the site goes on with the admin's objects alone.
+    if (!own.imported) throw feed;
+    console.error("The azpo.ru catalogue is not available, showing the admin's objects only", feed);
+  }
   const eurPerUsd = await getEurPerUsd();
-  // Objects added in the admin join the catalogue; their ids (900001+) sort them first, as the newest.
-  const own = (await publishedObjects()).map(fromAdmin);
-  return [...json.realEstates.map(normalise), ...own]
+  // Objects the admin owns (moved from azpo.ru, deleted there, or added by staff) come from the admin only.
+  const old = feed instanceof Error ? [] : feed.filter((p) => !own.owned.has(p.id)).map((p) => fromAdmin(rowFromAzpo(p)));
+  return [...old, ...own.rows.map(fromAdmin)]
     .map((p) => ({
       ...p,
       images: p.images.slice(0, 8),
@@ -157,34 +119,34 @@ async function loadAllProperties(lang: string): Promise<Property[]> {
 }
 
 /** An object from the admin database in the shape of a catalogue object. */
-export function fromAdmin(o: ObjectRow): Property {
+export function fromAdmin(o: CatalogueRow | Omit<ObjectRow, "updated_at">): Property {
   const price = o.price ? Number(o.price) : null;
   const priceMax = o.price_max && price && Number(o.price_max) > price ? Number(o.price_max) : null;
+  const beds = bedrooms(o.bed_min === null ? "" : String(o.bed_min), o.bed_max, o.title, o.layouts);
   return {
     id: o.id,
     title: o.title,
     city: o.city,
     district: districtSlug(o.district) ? o.district!.trim() : null,
     districtSlug: districtSlug(o.district),
-    bedMin: o.bed_min,
-    bedMax: Math.max(o.bed_min, o.bed_max),
-    bedKnown: true,
-    studio: o.bed_min === 0 && o.type === "Квартиры",
+    ...beds,
     bathrooms: o.bathrooms,
+    bathroomsMax: o.bathrooms_max,
     area: o.area,
+    areaMax: o.area_max,
     price,
     priceMax,
     currency: o.currency,
     priceEur: null,
     isProject: o.is_project,
-    types: [o.type],
+    types: o.types,
     tags: o.tags,
     images: o.photos,
-    photoCount: o.photos.length,
+    photoCount: ("photo_count" in o && typeof o.photo_count === "number" ? o.photo_count : null) ?? o.photos.length,
   };
 }
 
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v4"], { revalidate: REVALIDATE, tags: ["properties"] });
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v5"], { revalidate: REVALIDATE, tags: ["properties"] });
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {
@@ -211,94 +173,54 @@ export function toCard(p: Property, maxImages = 1): PropertyCard {
 
 
 
-interface RawDetails extends RawProperty {
-  details?: string | null;
-  max_floor?: number | null;
-  building_floor?: number | null;
-  age_of_the_building?: number | null;
-  furnished_sale?: number | null;
-  location_map?: string | null;
-  dist_sea?: number | null; dist_sea_type?: string | null;
-  dist_airport?: number | null; dist_airport_type?: string | null;
-  dist_hospital?: number | null; dist_hospital_type?: string | null;
-  dist_shopping?: number | null; dist_shopping_type?: string | null;
-  features?: { name: string }[];
-  landscapes?: { name: string }[];
-  heatingTypes?: { name: string }[];
-}
-
-const ENTITIES: Record<string, string> = {
-  "&nbsp;": " ", "&mdash;": "—", "&ndash;": "–", "&laquo;": "«", "&raquo;": "»", "&quot;": '"',
-  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&#39;": "'", "&rsquo;": "’", "&lsquo;": "‘", "&hellip;": "…",
+/** The fact list and chips of an object page, from an admin row (or an azpo.ru object converted to one). */
+const VIEW: Record<string, string> = { "Море": "Вид на море", "Горы": "Вид на горы", "Природа": "Вид на природу", "Город": "Вид на город", "Бассейн": "Вид на бассейн", "Двор": "Вид во двор" };
+const HEATING: Record<string, string> = { "Газ": "Газовое отопление", "Подогрев пола": "Тёплый пол", "Комбинированный": "Комбинированное отопление" };
+const distText = (v: string | number | null, u: string) => {
+  const n = v === null ? null : Number(v);
+  return n ? `${n.toLocaleString("ru-RU")} ${u === "km" ? "км" : "м"}` : null;
 };
 
-/** Turns the CMS HTML into plain paragraphs (no raw HTML is rendered on the page). */
-export function htmlToText(html: string) {
-  return html
-    .replace(/<\s*br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|h\d)>/gi, "\n\n")
-    .replace(/<li[^>]*>/gi, "• ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&[a-z#0-9]+;/gi, (m) => ENTITIES[m] ?? m)
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function detailsFromRow(o: Omit<ObjectRow, "updated_at">) {
+  const thisYear = new Date().getFullYear();
+  const facts: [string, string | null][] = [
+    ["Этаж", !o.is_project && o.floor ? String(o.floor) : null],
+    ["Этажность", o.floors ? String(o.floors) : null],
+    [o.year && o.year > thisYear ? "Год сдачи" : "Год постройки", o.year ? String(o.year) : null],
+    ["Планировки", o.is_project && o.layouts.length ? o.layouts.join(", ") : null],
+    ["Мебель", o.furnished ? "С мебелью" : null],
+    ["Рассрочка", o.installments?.trim() || null],
+    ["До моря", distText(o.dist_sea, o.dist_sea_unit)],
+    ["До аэропорта", distText(o.dist_airport, o.dist_airport_unit)],
+    ["До больницы", distText(o.dist_hospital, o.dist_hospital_unit)],
+    ["До магазинов", distText(o.dist_shopping, o.dist_shopping_unit)],
+  ];
+  return {
+    property: fromAdmin(o),
+    description: o.description?.trim() || null,
+    facts,
+    features: [
+      ...(o.developer ? [`Застройщик: ${o.developer}`] : []),
+      ...o.features,
+      ...o.views.map((v) => VIEW[v] ?? v),
+      ...o.heating.map((h) => HEATING[h] ?? h),
+    ],
+    map: o.map_url && /^https?:\/\//.test(o.map_url) ? o.map_url : null,
+  };
 }
 
-const dist = (v?: number | null, t?: string | null) => (v ? `${v} ${t === "km" ? "км" : "м"}` : null);
-
 export async function getPropertyDetails(id: number, lang = "ru") {
-  if (isAdminObjectId(id)) {
-    const o = await getPublishedObject(id);
-    if (!o) return null;
-    return {
-      property: fromAdmin(o),
-      prevId: null,
-      nextId: null,
-      description: o.description?.trim() || null,
-      facts: OBJECT_FACTS.map(([k, label]): [string, string | null] => [label, o.facts?.[k]?.trim() || null]),
-      features: o.developer ? [`Застройщик: ${o.developer}`] : [],
-      map: null,
-    };
-  }
+  // The admin decides about every object it has; the old catalogue only about the ones not moved yet.
+  const own = await siteObject(id);
+  if (own.owned) return own.row ? detailsFromRow(own.row) : null;
   try {
     const res = await fetch(`${API_BASE}/dashboard/properties/${id}/${lang}`, { next: { revalidate: REVALIDATE } });
     if (!res.ok) return null;
     const j = await res.json();
-    const d: RawDetails = Array.isArray(j) ? j[0] : j;
-    if (!d || !d.id) return null;
-    const facts: [string, string | null][] = [
-      ["Этажность", d.max_floor ? String(d.max_floor) : null],
-      ["Год сдачи", d.age_of_the_building ? String(d.age_of_the_building) : null],
-      ["Мебель", d.furnished_sale ? "С мебелью" : null],
-      ["До моря", dist(d.dist_sea, d.dist_sea_type)],
-      ["До аэропорта", dist(d.dist_airport, d.dist_airport_type)],
-      ["До больницы", dist(d.dist_hospital, d.dist_hospital_type)],
-      ["До магазинов", dist(d.dist_shopping, d.dist_shopping_type)],
-    ];
-    return {
-      property: normalise(d),
-      prevId: (d as { prevId?: number }).prevId ?? null,
-      nextId: (d as { nextId?: number }).nextId ?? null,
-      description: d.details ? htmlToText(d.details) : null,
-      facts,
-      features: [...(d.features ?? []), ...(d.landscapes ?? []), ...(d.heatingTypes ?? [])].map((f) => f.name).filter(Boolean),
-      map: d.location_map || null,
-    };
+    const d = Array.isArray(j) ? j[0] : j;
+    if (!d || d.id !== id) return null;
+    return detailsFromRow(rowFromAzpo(d));
   } catch {
     return null;
   }
 }
-
-export async function getRelated(p: Property, lang = "ru") {
-  try {
-    const res = await fetch(`${API_BASE}/real-estates/${lang}?relatedProperties=${p.id},${p.price ?? 0}`, {
-      next: { revalidate: REVALIDATE },
-    });
-    const json = (await res.json()) as { realEstates: RawProperty[] | null };
-    const list = (json.realEstates ?? []).map(normalise).filter((x) => x.id !== p.id);
-    return [...list.filter((x) => x.city === p.city), ...list.filter((x) => x.city !== p.city)].slice(0, 3);
-  } catch {
-    return [];
-  }
-}
-
