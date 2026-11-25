@@ -28,9 +28,9 @@ export interface Property {
   studio: boolean;
   bathrooms: number | null;
   area: number | null;
-  /** Largest layout of a project, m². */
-  areaMax: number | null;
-  bathroomsMax: number | null;
+  /** Largest layout of a project, m² (optional: lists cached before it existed lack it). */
+  areaMax?: number | null;
+  bathroomsMax?: number | null;
   price: number | null;
   priceMax: number | null;
   currency: "USD" | "EUR";
@@ -79,14 +79,14 @@ function bedrooms(raw: string, maxBed: number, title: string, layouts: string[] 
 }
 
 /** The old azpo.ru catalogue (public API). */
-async function loadFeed(lang: string): Promise<AzpoObject[]> {
-  // The raw list is ~4 MB (every photo of every object), above the 2 MB fetch-cache limit,
+async function loadFeed(lang: string, attempts: number, timeout: number): Promise<AzpoObject[]> {
+  // The raw list is ~3 MB (every photo of every object), above the 2 MB fetch-cache limit,
   // so we fetch it uncached and cache a slimmed version (first 8 photos per object) instead.
-  // api.azpo.ru is in Russia and is sometimes slow from Vercel's US region: retry with a timeout.
+  // api.azpo.ru is in Russia and is often slow from Vercel's regions: retry with a timeout.
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+      const res = await fetch(`${API_BASE}/real-estates/${lang}?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(timeout) });
       if (!res.ok) throw new Error(`API ${res.status}`);
       const json = (await res.json()) as { realEstates: AzpoObject[] | null };
       if (json.realEstates?.length) return json.realEstates;
@@ -100,15 +100,15 @@ async function loadFeed(lang: string): Promise<AzpoObject[]> {
 
 async function loadAllProperties(lang: string): Promise<Property[]> {
   const started = Date.now();
-  const [feed, own] = await Promise.all([
-    loadFeed(lang).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err)))).finally(() => console.log(`catalogue: azpo.ru list ${Date.now() - started} ms`)),
-    catalogueObjects().finally(() => console.log(`catalogue: admin objects ${Date.now() - started} ms`)),
-  ]);
-  if (feed instanceof Error) {
-    // Before anything has been moved into the admin the old catalogue is the catalogue: throwing keeps
-    // an empty list out of the cache. Afterwards the site goes on with the admin's objects alone.
-    if (!own.imported) throw feed;
-    console.error("The azpo.ru catalogue is not available, showing the admin's objects only", feed);
+  const own = await catalogueObjects();
+  // Once objects have been moved into the admin, the old catalogue only adds objects that are not moved yet:
+  // the site does not wait long for it. Before that it is the catalogue, and gets more time.
+  const feed = await loadFeed(lang, own.imported ? 1 : 2, own.imported ? 8_000 : 25_000).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
+  console.log(`catalogue: ${own.rows.length} from the admin, azpo.ru list ${feed instanceof Error ? `failed (${feed.message})` : feed.length}, ${Date.now() - started} ms`);
+  if (feed instanceof Error && !own.imported) {
+    // Nothing has been moved into the admin yet, so the old catalogue is the catalogue: throwing keeps
+    // an empty list out of the cache (the previous list stays in use).
+    throw feed;
   }
   const eurPerUsd = await getEurPerUsd();
   // Objects the admin owns (moved from azpo.ru, deleted there, or added by staff) come from the admin only.
@@ -150,7 +150,9 @@ export function fromAdmin(o: CatalogueRow | Omit<ObjectRow, "updated_at">): Prop
   };
 }
 
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v5"], { revalidate: REVALIDATE, tags: ["properties"] });
+// The key stays "v4": the list cached under it is still valid (fields added since then are optional),
+// and a new key would leave the site without any list while api.azpo.ru is slow to answer from Vercel.
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v4"], { revalidate: REVALIDATE, tags: ["properties"] });
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {
