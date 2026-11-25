@@ -34,7 +34,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       </aside>
       <main className="min-w-0 px-4 py-6 sm:px-8 sm:py-8">
         {!canEdit(me) && (
-          <p className="mb-6 rounded-[14px_4px_14px_4px] bg-brand-50 px-4 py-3 text-sm font-bold text-brand-600">
+          <p className="mb-6 rounded-[14px_4px_14px_4px] bg-white px-4 py-3 text-sm font-bold text-brand-600 ring-1 ring-brand-500/25">
             У вас доступ «Просмотр»: вы видите всё, но не можете ничего менять.
           </p>
         )}

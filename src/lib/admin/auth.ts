@@ -49,7 +49,7 @@ export interface Staff { id: number; email: string; name: string; role: Role }
 /** The roles as staff see them, from the most rights to the least. */
 export const ROLES: { value: Role; label: string; hint: string }[] = [
   { value: "owner", label: "Владелец", hint: "Всё, что может редактор, и управляет сотрудниками." },
-  { value: "editor", label: "Редактор", hint: "Добавляет и меняет объекты, статьи, SEO и переадресации." },
+  { value: "editor", label: "Редактор", hint: "Добавляет и меняет объекты, статьи, SEO-тексты и редиректы." },
   { value: "viewer", label: "Просмотр", hint: "Видит всю админку, но ничего не меняет." },
 ];
 export const roleName = (r: Role) => ROLES.find((x) => x.value === r)?.label ?? r;
