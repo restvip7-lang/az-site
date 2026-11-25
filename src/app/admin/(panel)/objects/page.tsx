@@ -5,6 +5,7 @@ import { OBJECTS_PER_PAGE, listObjects, objectStats, type ObjectFilter } from "@
 import { formatPrice } from "@/lib/format";
 import { CITIES, cityName, districtName, districtSlug } from "@/lib/geo";
 import { cardPath } from "@/lib/paths";
+import { API_BASE } from "@/lib/azpo-feed";
 import ObjectImport from "@/components/admin/ObjectImport";
 import PageHead, { fmtDate } from "@/components/admin/PageHead";
 
@@ -39,7 +40,7 @@ export default async function Objects({ searchParams }: { searchParams: Promise<
         sub={`Весь каталог сайта: новостройки застройщиков и отдельные объекты. Всего ${stats.total}, на сайте ${stats.published}.`}
         action={{ href: "/admin/objects/new/", label: "+ Добавить" }}
       />
-      <ObjectImport moved={stats.azpo} />
+      <ObjectImport moved={stats.azpo} api={API_BASE} />
 
       <form className="adm-card mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]" role="search">
         <label>

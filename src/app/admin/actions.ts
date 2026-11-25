@@ -8,7 +8,7 @@ import { isCategory, isSlug, slugFromTitle } from "@/lib/blog";
 import { db } from "@/lib/db";
 import { checkSetupCode, endSession, hashPassword, passwordProblem, requireStaff, signIn, staffCount, startSession, verifyPassword } from "@/lib/admin/auth";
 import { getObject } from "@/lib/admin/objects";
-import { importObjects, importPlan } from "@/lib/admin/object-import";
+import { importFetched, importObjects, importPlan, missingIds } from "@/lib/admin/object-import";
 import { getArticle } from "@/lib/admin/articles";
 import { importBlog } from "@/lib/admin/importer";
 import { isGeo } from "@/lib/admin/options";
@@ -189,6 +189,32 @@ export async function objectImportPlanAction(): Promise<{ error: string } | { to
   } catch (err) {
     console.error(err);
     return { error: `Не удалось получить каталог azpo.ru: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+/** Step 1 when the page read the azpo.ru list itself: which of these ids are still to be moved. */
+export async function objectImportMissingAction(ids: number[]): Promise<{ error: string } | { missing: number[] }> {
+  await requireStaff();
+  if (!Array.isArray(ids)) return { error: "Нет списка объектов." };
+  try {
+    return { missing: await missingIds(ids.slice(0, 5000).map(Number)) };
+  } catch (err) {
+    console.error(err);
+    return { error: "Не удалось прочитать базу данных. Попробуйте ещё раз." };
+  }
+}
+
+/** Step 2 when the page read the objects itself: saves one batch of them. */
+export async function objectImportSaveAction(objects: unknown[]): Promise<{ error: string } | { imported: number; failed: number[] }> {
+  await requireStaff();
+  if (!Array.isArray(objects)) return { error: "Нет объектов." };
+  try {
+    const r = await importFetched(objects);
+    if (r.imported) revalidateTag("properties");
+    return r;
+  } catch (err) {
+    console.error(err);
+    return { error: `Перенос прервался: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 

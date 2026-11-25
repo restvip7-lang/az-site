@@ -94,6 +94,7 @@ export function rowFromAzpo(d: AzpoObject): Omit<ObjectRow, "updated_at"> {
   const raw = String(d.bed_room ?? "").trim();
   let bedMin: number | null = /^\d+$/.test(raw) ? Number(raw) : beds.length ? Math.min(...beds) : /\d+/.test(raw) ? Number(raw.match(/\d+/)![0]) : null;
   if (bedMin !== null && bedMin <= 1 && beds.length && Math.min(...beds) === 0) bedMin = 0; // a studio entered as 1+0
+  else if (bedMin === 0 && beds.length) bedMin = Math.min(...beds); // "0" next to layouts without a studio: the layouts are right
   const bedMax = Math.max(bedMin ?? 0, int(d.max_bed) ?? 0, ...(isProject ? beds : []));
 
   const price = pos(d.price_min) ?? pos(d.price);

@@ -1,9 +1,11 @@
 "use client";
 // The move of the azpo.ru catalogue into the admin: asks which objects are missing, then moves them
-// in batches of 25 and shows the progress. It can be stopped and run again: moved objects are skipped.
+// in batches and shows the progress. It can be stopped and run again: moved objects are skipped.
+// The page reads azpo.ru itself (from the staff member's browser azpo.ru answers in a second, from Vercel's
+// servers it can take minutes) and hands the objects to the server; whatever it cannot read, the server tries.
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { objectImportBatchAction, objectImportPlanAction } from "@/app/admin/actions";
+import { objectImportBatchAction, objectImportMissingAction, objectImportPlanAction, objectImportSaveAction } from "@/app/admin/actions";
 
 type Run =
   | { step: "idle" }
@@ -11,9 +13,28 @@ type Run =
   | { step: "running" | "stopped" | "done"; total: number; todo: number; done: number; imported: number; failed: number[] }
   | { step: "error"; error: string };
 
-const BATCH = 25;
+const BATCH = 20;
 
-export default function ObjectImport({ moved }: { moved: number }) {
+async function getJson(url: string, ms: number): Promise<unknown> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(ms) });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+
+/** Runs `fn` over the items, `n` at a time. */
+async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  }));
+  return out;
+}
+
+export default function ObjectImport({ moved, api }: { moved: number; api: string }) {
   const router = useRouter();
   const [run, setRun] = useState<Run>({ step: "idle" });
   const stop = useRef(false);
@@ -21,7 +42,15 @@ export default function ObjectImport({ moved }: { moved: number }) {
   async function start() {
     stop.current = false;
     setRun({ step: "checking" });
-    const plan = await objectImportPlanAction().catch((e: unknown) => ({ error: e instanceof Error ? e.message : "Сеть недоступна" }));
+    const fail = (e: unknown) => ({ error: e instanceof Error ? e.message : "Сеть недоступна" });
+    // The list from this browser; if azpo.ru does not answer here, the server reads it.
+    const ids = await getJson(`${api}/real-estates/ru?limit=2000`, 30_000)
+      .then((j) => ((j as { realEstates?: { id: number }[] }).realEstates ?? []).map((p) => p.id).filter(Number.isInteger))
+      .catch(() => [] as number[]);
+    const direct = ids.length > 0;
+    const plan = direct
+      ? await objectImportMissingAction(ids).then((r) => ("error" in r ? r : { total: ids.length, missing: r.missing })).catch(fail)
+      : await objectImportPlanAction().catch(fail);
     if ("error" in plan) return setRun({ step: "error", error: plan.error });
     const state = { total: plan.total, todo: plan.missing.length, done: 0, imported: 0, failed: [] as number[] };
     setRun({ step: plan.missing.length ? "running" : "done", ...state });
@@ -31,15 +60,25 @@ export default function ObjectImport({ moved }: { moved: number }) {
         router.refresh();
         return;
       }
-      const ids = plan.missing.slice(i, i + BATCH);
-      const r = await objectImportBatchAction(ids).catch((e: unknown) => ({ error: e instanceof Error ? e.message : "Сеть недоступна" }));
-      if ("error" in r) {
-        state.failed.push(...ids);
-      } else {
-        state.imported += r.imported;
-        state.failed.push(...r.failed);
+      const batch = plan.missing.slice(i, i + BATCH);
+      let rest = batch;
+      if (direct) {
+        const got = (await pool(batch, 6, (id) => getJson(`${api}/dashboard/properties/${id}/ru`, 20_000)
+          .then((j) => (Array.isArray(j) ? j[0] : j) as { id?: number } | undefined)
+          .catch(() => undefined))).filter((d): d is { id: number } => d?.id !== undefined && batch.includes(d.id));
+        if (got.length) {
+          const r = await objectImportSaveAction(got).catch(fail);
+          if ("error" in r) state.failed.push(...got.map((d) => d.id));
+          else { state.imported += r.imported; state.failed.push(...r.failed); }
+        }
+        rest = batch.filter((id) => !got.some((d) => d.id === id));
       }
-      state.done += ids.length;
+      if (rest.length) {
+        const r = await objectImportBatchAction(rest).catch(fail);
+        if ("error" in r) state.failed.push(...rest);
+        else { state.imported += r.imported; state.failed.push(...r.failed); }
+      }
+      state.done += batch.length;
       setRun({ step: "running", ...state });
     }
     setRun({ step: "done", ...state });
