@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { db, hasDb } from "@/lib/db";
 import { checkStorage } from "@/lib/admin/storage";
+import { currentStaff } from "@/lib/admin/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,9 @@ async function checkBlog() {
 }
 
 export async function GET() {
-  const env = Object.keys(process.env).filter((k) => /POSTGRES|SUPABASE|DATABASE/.test(k)).sort();
+  // Setting names only for signed-in staff; anyone else sees just whether things work.
+  const staff = hasDb() ? await currentStaff().catch(() => null) : null;
+  const env = staff ? Object.keys(process.env).filter((k) => /POSTGRES|SUPABASE|DATABASE/.test(k)).sort() : undefined;
   const out: Record<string, unknown> = { env, storage: await checkStorage(), blog: await checkBlog(), db: { configured: hasDb() } };
   if (hasDb()) {
     const started = Date.now();

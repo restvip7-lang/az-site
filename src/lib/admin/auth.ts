@@ -28,7 +28,18 @@ export async function verifyPassword(pw: string, stored: string) {
   return got.length === want.length && timingSafeEqual(got, want);
 }
 
-export const checkSetupCode = (code: string) => verifyPassword(code.trim().toUpperCase(), SETUP_CODE_HASH);
+const SETUP_KEY = "#setup"; // login_failures row for wrong setup codes (no e-mail can start with "#")
+const SETUP_MAX_FAILURES = 5; // for everyone together, per 15 minutes
+
+/** Checks the one-time setup code, with a shared limit on wrong guesses. Returns an error text or null. */
+export async function checkSetupCode(code: string): Promise<string | null> {
+  const sql = await db();
+  const [{ n }] = await sql`select count(*)::int as n from login_failures where email = ${SETUP_KEY} and at > now() - interval '15 minutes'`;
+  if (n >= SETUP_MAX_FAILURES) return "Слишком много попыток. Подождите 15 минут.";
+  if (await verifyPassword(code.trim().toUpperCase(), SETUP_CODE_HASH)) return null;
+  await sql`insert into login_failures (email) values (${SETUP_KEY})`;
+  return "Код не подходит.";
+}
 
 const tokenHash = (t: string) => createHash("sha256").update(t).digest("hex");
 

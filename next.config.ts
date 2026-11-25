@@ -6,6 +6,9 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  // A baseline policy that needs no list of script hosts: no plugins, no <base> hijacking,
+  // forms only to this site, no framing by other sites.
+  { key: "Content-Security-Policy", value: "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" },
 ];
 
 const nextConfig: NextConfig = {
