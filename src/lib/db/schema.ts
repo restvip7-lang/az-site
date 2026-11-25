@@ -108,4 +108,14 @@ export const MIGRATIONS: Migration[] = [
         on conflict (category, slug) do nothing`;
     }
   },
+
+  // The guides rewritten in AZPO's own words (the first texts repeated the Kleo Homes site word for word).
+  // Only guides nobody has edited in the admin yet: their updated_at still equals created_at.
+  async (tx) => {
+    for (const g of guides) {
+      await tx`
+        update articles set excerpt = ${g.excerpt}, body = ${g.body}, seo_description = ${g.seo_description}, updated_at = now()
+        where category = 'area-guides' and slug = ${g.slug} and updated_at = created_at`;
+    }
+  },
 ];
