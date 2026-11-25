@@ -2,6 +2,7 @@
 // A step is SQL text, or a function for steps that insert data (it runs inside the same transaction).
 import type { TransactionSql } from "postgres";
 import guides from "@/content/area-guides.json";
+import guideFixes from "@/content/area-guides-fixes.json";
 
 export type Migration = string | ((tx: TransactionSql) => Promise<unknown>);
 
@@ -116,6 +117,18 @@ export const MIGRATIONS: Migration[] = [
       await tx`
         update articles set excerpt = ${g.excerpt}, body = ${g.body}, seo_description = ${g.seo_description}, updated_at = now()
         where category = 'area-guides' and slug = ${g.slug} and updated_at = created_at`;
+    }
+  },
+
+  // Price statements in the guides brought in line with the AZPO catalogue. A plain text replace: a phrase
+  // somebody has already rewritten in the admin is left alone, and a fix that is already there is skipped.
+  async (tx) => {
+    for (const f of guideFixes) {
+      if (!["body", "excerpt", "seo_description"].includes(f.field)) throw new Error(`Unexpected field ${f.field}`);
+      const col = tx(f.field);
+      await tx`
+        update articles set ${col} = replace(${col}, ${f.from}, ${f.to}), updated_at = now()
+        where category = 'area-guides' and slug = ${f.slug} and position(${f.from} in ${col}) > 0 and position(${f.to} in ${col}) = 0`;
     }
   },
 ];

@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { publishedArticles, type ArticleRow } from "@/lib/admin/articles";
 import { getAllProperties, toCard } from "@/lib/api";
 import { listingPath } from "@/lib/catalog";
+import { alanyaFlatPrices, eur, priceNote } from "@/lib/district-prices";
 import { ALANYA_SCORES, SCORE_LABELS, scoreFor, type ScoreKey } from "@/lib/district-scores";
 import { CITIES, geoIn } from "@/lib/geo";
 import { redirectFor, seoFor, withSeo } from "@/lib/admin/seo";
@@ -97,6 +98,9 @@ export default async function ArticlePage({ params }: Props) {
   const picks = [...here].sort((x, y) => Number(y.images.length > 0) - Number(x.images.length > 0)).slice(0, 3).map((p) => toCard(p));
   const where = place ? geoIn(place.city, place.district) : "";
   const score = place?.city === "alanya" && place.district ? scoreFor(place.district) : null;
+  const prices = score ? await alanyaFlatPrices() : null;
+  const pm = score && prices ? prices.by[score.slug] : null;
+  const pmNote = score && prices ? priceNote(score.slug, prices) : null;
 
   const ld = {
     "@context": "https://schema.org",
@@ -160,6 +164,15 @@ export default async function ArticlePage({ params }: Props) {
                     <dt className="font-bold text-ink/80">До центра</dt>
                     <dd className="font-black tabular-nums text-ink">{score.toCenter ? `${String(score.toCenter).replace(".", ",")} км` : "в центре"}</dd>
                   </div>
+                  {pm != null && (
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="font-bold text-ink/80">Цена м² квартир</dt>
+                        <dd className="font-black tabular-nums text-ink">{eur(pm)}</dd>
+                      </div>
+                      {pmNote && <p className="mt-1 text-right text-xs font-bold text-brand-500">{pmNote}</p>}
+                    </div>
+                  )}
                 </dl>
                 <Link href={`${blogPath("area-guides")}#compare`} className="mt-5 inline-flex text-sm font-black text-brand-500 hover:underline">Сравнить с {ALANYA_SCORES.length - 1} другими районами →</Link>
               </div>

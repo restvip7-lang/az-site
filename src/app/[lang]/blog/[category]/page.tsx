@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { publishedArticles, type ArticleRow } from "@/lib/admin/articles";
-import { getAllProperties } from "@/lib/api";
-import { listingPath, stats } from "@/lib/catalog";
+import { listingPath } from "@/lib/catalog";
+import { alanyaFlatPrices } from "@/lib/district-prices";
 import { ALANYA_SCORES } from "@/lib/district-scores";
 import { districtName } from "@/lib/geo";
 import { redirectFor, seoFor, withSeo } from "@/lib/admin/seo";
@@ -39,14 +39,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Alanya districts for the comparison table: editorial scores plus live prices and counts of the catalogue. */
 async function compareRows(guides: ArticleRow[]): Promise<CompareRow[]> {
-  const all = (await getAllProperties()).filter((p) => p.city === "alanya");
+  const prices = await alanyaFlatPrices();
   return ALANYA_SCORES.map((d) => {
-    const here = all.filter((p) => p.districtSlug === d.slug);
+    const here = prices.all.filter((p) => p.districtSlug === d.slug);
     const guide = guides.find((a) => a.geo === `alanya/${d.slug}`);
     return {
       slug: d.slug, name: districtName(d.slug), guide: guide ? blogPath(guide.category, guide.slug) : null,
       catalog: listingPath({ city: "alanya", district: d.slug }), toCenter: d.toCenter, sea: d.sea, note: d.note,
-      pm: stats(here).avgM2, count: here.length, scores: d.scores,
+      pm: prices.by[d.slug], count: here.length, scores: d.scores,
     };
   });
 }
@@ -60,12 +60,12 @@ function compareFaq(rows: CompareRow[]) {
     { q: "В каком районе Алании лучше жить круглый год?", a: `Для постоянной жизни удобнее всего ${names((r) => r.scores.life === 5)}: школы, клиники и магазины рядом и работают зимой. Немного спокойнее, но тоже с развитой инфраструктурой: ${names((r) => r.scores.life === 4)}.` },
     { q: "Где в Алании купить квартиру под аренду?", a: `Самый стабильный спрос на аренду в центре Алании. Хорошо сдаются также ${names((r) => r.scores.rent === 4)}. Для сдачи летом важны пляж и набережная рядом, для сдачи на долгий срок важнее инфраструктура.` },
     { q: "Какие районы Алании самые тихие?", a: `${names((r) => r.scores.quiet === 5)}. Взамен до центра дальше, а зимой там меньше открытых магазинов и кафе.` },
-    { q: "Какие районы Алании не у моря?", a: `${names((r) => r.sea.m > 0)}: до пляжа оттуда от 700 м до 5 км. Джикджилли выбирают за цены ниже, чем у моря, и школы с магазинами рядом, Тепе — за виды на море и крепость и за тишину.` },
+    { q: "Какие районы Алании не у моря?", a: `${names((r) => r.sea.m > 0)}: до пляжа оттуда от 700 м до 5 км. Джикджилли выбирают за школы, магазины и новые комплексы рядом, Тепе — за виды на море и крепость и за тишину.` },
   ];
   if (priced.length >= 4) {
     const cheap = priced.slice(0, 3).map((r) => `${r.name} (${eur(r.pm!)})`).join(", ");
     const top = priced.slice(-2).reverse().map((r) => `${r.name} (${eur(r.pm!)})`).join(" и ");
-    items.push({ q: "Где в Алании самые доступные цены на квартиры?", a: `По каталогу AZPO самый низкий средний метр сейчас в районах ${cheap}. Дороже всего ${top}. Цены обновляются вместе с каталогом.` });
+    items.push({ q: "Где в Алании самые доступные цены на квартиры?", a: `По каталогу AZPO самый низкий средний метр в квартирах сейчас в районах ${cheap}. Дороже всего ${top}. Цены обновляются вместе с каталогом.` });
   }
   return items;
 }

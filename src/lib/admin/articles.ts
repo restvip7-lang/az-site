@@ -53,7 +53,7 @@ const loadPublished = unstable_cache(
       return [];
     }
   },
-  ["published-articles-v3"],
+  ["published-articles-v4"],
   { revalidate: 600, tags: ["articles"] },
 );
 
