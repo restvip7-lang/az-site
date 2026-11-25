@@ -35,9 +35,13 @@ export function sql(): Sql {
     username: decodeURIComponent(u.username),
     password: decodeURIComponent(u.password),
     ssl: local ? false : "require",
-    // The Supabase pooler runs in transaction mode: no prepared statements, few connections per instance.
+    // The Supabase pooler runs in transaction mode: no prepared statements, few connections per instance,
+    // and one query at a time per connection. postgres.js otherwise sends the next queries before the first
+    // one is answered; through the pooler that left database sessions waiting for the rest of a query
+    // ("active", ClientRead) for minutes, and the admin and the catalogue hung on them.
     prepare: false,
     max: 3,
+    ...({ max_pipeline: 1 } as object), // a postgres.js option its type definitions leave out
     idle_timeout: 20,
     connect_timeout: 10,
     onnotice: () => {},
