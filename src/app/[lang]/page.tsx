@@ -5,6 +5,7 @@ import { getAllProperties, objects, toCard, type Property } from "@/lib/api";
 import { INDEX_MIN, TYPES, geoIndex, listingPath, priceOf, select, stats, type Query } from "@/lib/catalog";
 import { CITIES, cityName, districtName } from "@/lib/geo";
 import { alternates } from "@/lib/i18n";
+import { blogPath } from "@/lib/blog";
 import { R } from "@/lib/routes";
 import { REVIEWS } from "@/lib/content";
 import { SERVICES } from "@/lib/services";
@@ -307,7 +308,7 @@ export default async function Home() {
             kicker="Алания по районам"
             title={<>Районы <span className="slant">Алании</span></>}
             sub="У каждого района своя инфраструктура, расстояние до моря и уровень цен."
-            action={<Link href={listingPath({ city: "alanya" })} className="btn btn-ghost">Вся Алания{alanya?.count ? ` · ${alanya.count}` : ""} <Arrow /></Link>}
+            action={<Link href={`${blogPath("area-guides")}#compare`} className="btn btn-ghost">Сравнить районы <Arrow /></Link>}
           />
           <GeoCards items={districts} images={districtImages} />
         </section>

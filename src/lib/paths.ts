@@ -11,8 +11,10 @@ export function cardPath(p: Loc) {
   return `/${LANG}/turkey/${p.city}/${p.districtSlug ? `${p.districtSlug}/` : ""}sale/id${p.id}/`;
 }
 
-export function roomsLabel(p: { bedMin: number; bedMax: number }) {
+/** "2+1", "1+1 – 3+1", "Студия", "до 3+1" when only the largest layout is known, "" when nothing is. */
+export function roomsLabel(p: { bedMin: number; bedMax: number; bedKnown?: boolean }) {
   const f = (n: number) => `${n}+1`;
+  if (p.bedKnown === false) return p.bedMax ? `до ${f(p.bedMax)}` : "";
   if (p.bedMax > p.bedMin) return `${f(p.bedMin)} – ${f(p.bedMax)}`;
   return p.bedMin === 0 ? "Студия" : f(p.bedMin);
 }

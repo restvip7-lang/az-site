@@ -29,7 +29,7 @@ export function parseFilters(sp: URLSearchParams): Filters {
   return {
     price_from: num("price_from"),
     price_to: num("price_to"),
-    rooms: num("rooms"),
+    rooms: sp.get("rooms") === "0" ? 0 : num("rooms"),
     sort: sort && sort in SORTS ? (sort as Sort) : undefined,
     q: sp.get("q")?.trim().toLowerCase() || undefined,
   };
@@ -39,6 +39,7 @@ export function applyFilters(items: Property[], f: Filters) {
   const r = items.filter((p) => {
     if (f.price_from && (p.priceEur ?? 0) < f.price_from) return false;
     if (f.price_to && (!p.priceEur || p.priceEur > f.price_to)) return false;
+    if (f.rooms === 0 && !p.studio) return false;
     if (f.rooms) {
       if (f.rooms >= 5 ? p.bedMax < 5 : !(p.bedMin <= f.rooms && p.bedMax >= f.rooms)) return false;
     }

@@ -30,7 +30,7 @@ export default function HeroSearch({ options }: { options: HeroOptions }) {
     const t = options.types.find((x) => x.value === type);
     const params = new URLSearchParams();
     let feature = "";
-    if (t?.residential && rooms && Number(rooms) <= 4) feature = rooms === "1" ? "1-bedroom" : `${rooms}-bedrooms`;
+    if (t?.residential && Number(rooms) >= 1 && Number(rooms) <= 4) feature = rooms === "1" ? "1-bedroom" : `${rooms}-bedrooms`;
     else if (rooms) params.set("rooms", rooms);
     if (t?.residential && !feature && max && LANDING_BUDGETS.includes(Number(max))) feature = `price-to-${max}`;
     else if (max) params.set("price_to", max);
@@ -52,6 +52,7 @@ export default function HeroSearch({ options }: { options: HeroOptions }) {
       </select>
       <select aria-label="Спальни" value={rooms} onChange={(e) => setRooms(e.target.value)} className={sel}>
         <option value="">Спальни</option>
+        <option value="0">0+1 (студия)</option>
         {[1, 2, 3, 4, 5].map((r) => <option key={r} value={r}>{r}+1{r === 5 ? " и больше" : ""}</option>)}
       </select>
       <select aria-label="Бюджет" value={max} onChange={(e) => setMax(e.target.value)} className={sel}>

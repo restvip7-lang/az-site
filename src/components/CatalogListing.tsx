@@ -120,6 +120,7 @@ export default function CatalogListing({
         <span className={label}>Спальни</span>
         <select className={`${ctl} select-chevron`} value={params.rooms ?? ""} onChange={(e) => setParam("rooms", e.target.value)}>
           <option value="">Любое число</option>
+          <option value="0">0+1 (студия)</option>
           {[1, 2, 3, 4, 5].map((r) => <option key={r} value={r}>{r}+1{r === 5 ? " и больше" : ""}</option>)}
         </select>
       </label>

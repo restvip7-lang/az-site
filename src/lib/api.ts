@@ -41,6 +41,10 @@ export interface Property {
   districtSlug: string | null; // "mahmutlar"
   bedMin: number;
   bedMax: number;
+  /** False when the feed has no bedroom count and the title has none either: bedMin is then 0 but means "unknown". */
+  bedKnown: boolean;
+  /** A studio flat (0+1), or a project that has studios among its layouts. */
+  studio: boolean;
   bathrooms: number | null;
   area: number | null;
   price: number | null;
@@ -65,10 +69,38 @@ export function imageUrl(fileName: string) {
   return IMAGE_BASE + encodeURIComponent(fileName);
 }
 
+/** "Студия 1+0", "0+1", "студии": a studio whatever bed_room says ("10+1" is not one). */
+const STUDIO = /студи|(?:^|\D)(?:1\+0|0\+1)(?!\d)/i;
+/** "Квартиры 1+1 и 2+1" → [1, 2]: layouts written in the title. */
+const titleRooms = (t: string) => [...t.matchAll(/(?:^|\D)(\d{1,2})\+[0-3](?!\d)/g)].map((m) => Number(m[1])).filter((n) => n > 0);
+
+/**
+ * Bedrooms: the feed's bed_room is often empty (most projects), and studios are entered as "1+0"
+ * with bed_room 1. An empty count is taken from the title when it names layouts, otherwise it stays unknown.
+ */
+function bedrooms(p: RawProperty, title: string) {
+  const raw = String(p.bed_room ?? "").trim();
+  let bedKnown = raw !== "" && Number.isFinite(Number(raw));
+  let bedMin = bedKnown ? Math.max(0, Number(raw)) : 0;
+  let bedMax = Math.max(bedMin, Number(p.max_bed ?? 0) || 0);
+  const named = bedKnown ? [] : titleRooms(title);
+  if (named.length) {
+    bedMin = Math.min(...named);
+    bedMax = Math.max(bedMax, ...named);
+    bedKnown = true;
+  }
+  const studio = STUDIO.test(title) || (bedKnown && bedMin === 0);
+  if (studio) {
+    bedMin = 0;
+    if (bedMax <= 1) bedMax = 0;
+    bedKnown = true;
+  }
+  return { bedMin, bedMax, bedKnown, studio };
+}
+
 function normalise(p: RawProperty): Property {
   const sorted = [...(p.images ?? [])].sort((a, b) => a.image_order - b.image_order || a.id - b.id);
-  const bedMin = Number(p.bed_room ?? 0) || 0;
-  const bedMax = Math.max(bedMin, Number(p.max_bed ?? 0) || 0);
+  const { bedMin, bedMax, bedKnown, studio } = bedrooms(p, (p.title ?? "").trim());
   const price = p.price_min || p.price || null;
   const priceMax = p.price_max && price && p.price_max > price ? p.price_max : null;
   return {
@@ -79,6 +111,8 @@ function normalise(p: RawProperty): Property {
     districtSlug: districtSlug(p.area),
     bedMin,
     bedMax,
+    bedKnown,
+    studio,
     bathrooms: p.bathroom ?? null,
     area: p.metrage ?? null,
     price,
@@ -134,6 +168,8 @@ export function fromAdmin(o: ObjectRow): Property {
     districtSlug: districtSlug(o.district),
     bedMin: o.bed_min,
     bedMax: Math.max(o.bed_min, o.bed_max),
+    bedKnown: true,
+    studio: o.bed_min === 0 && o.type === "Квартиры",
     bathrooms: o.bathrooms,
     area: o.area,
     price,
@@ -148,7 +184,7 @@ export function fromAdmin(o: ObjectRow): Property {
   };
 }
 
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v3"], { revalidate: REVALIDATE, tags: ["properties"] });
+const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v4"], { revalidate: REVALIDATE, tags: ["properties"] });
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {

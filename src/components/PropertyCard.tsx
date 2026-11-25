@@ -6,11 +6,12 @@ import { cityName, districtName } from "@/lib/geo";
 import { roomsLabel } from "@/lib/paths";
 import FavButton from "./FavButton";
 
-/** Up to two feature chips per teaser, most telling first. */
+/** Up to two feature chips per teaser, most telling first. "Под гражданство" always shows, in red. */
+const CITIZENSHIP = "Под гражданство";
 const CHIP_TAGS: [string, string][] = [
+  ["Под Гражданство", CITIZENSHIP],
   ["Первая линия", "Первая линия"],
   ["Вид на море", "Вид на море"],
-  ["Под Гражданство", "Под гражданство"],
   ["Новостройка", "Новостройка"],
   ["От застройщика", "От застройщика"],
   ["Вторичное жилье", "Вторичка"],
@@ -19,6 +20,7 @@ const CHIP_TAGS: [string, string][] = [
 export default function PropertyCard({ p, priority = false }: { p: Card; priority?: boolean }) {
   const badge = p.types[0] ?? (p.isProject ? "Проект" : null);
   const chips = CHIP_TAGS.filter(([t]) => p.tags.includes(t)).slice(0, 2).map(([, l]) => l);
+  const rooms = roomsLabel(p);
   const where = `${cityName(p.city)}${p.districtSlug ? ` · ${districtName(p.districtSlug, p.district)}` : ""}`;
   return (
     <article className="group relative h-full">
@@ -51,9 +53,9 @@ export default function PropertyCard({ p, priority = false }: { p: Card; priorit
         <div className="flex flex-1 flex-col px-3 pb-3 pt-4">
           <h3 className="line-clamp-2 text-pretty text-[1.02rem] font-black leading-snug tracking-[-0.01em] text-ink transition-colors group-hover:text-brand-500">{p.title}</h3>
           <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-bold text-brand-700">
-            <span className="rounded-full bg-sand px-2.5 py-1">{roomsLabel(p)}</span>
+            {rooms && <span className="rounded-full bg-sand px-2.5 py-1">{rooms}</span>}
             {p.area ? <span className="rounded-full bg-sand px-2.5 py-1 tabular-nums">{p.area} м²</span> : null}
-            {chips.map((c) => <span key={c} className="rounded-full bg-sky/15 px-2.5 py-1 text-brand-700">{c}</span>)}
+            {chips.map((c) => <span key={c} className={`rounded-full px-2.5 py-1 ${c === CITIZENSHIP ? "bg-alert text-white" : "bg-sky/15 text-brand-700"}`}>{c}</span>)}
           </div>
           <div className="mt-auto flex items-end justify-between gap-3 pt-4">
             <p className="text-xl font-black tabular-nums tracking-tight text-brand-500">

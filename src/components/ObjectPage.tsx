@@ -73,7 +73,7 @@ export default function ObjectPage({ d, all, geo }: { d: Details; all: Property[
     ["Город", cityName(p.city)],
     ["Район", p.districtSlug ? districtName(p.districtSlug, p.district) : null],
     ["Тип", t?.sg ?? (p.isProject ? "Проект застройщика" : null)],
-    ["Планировка", p.bedMin || p.bedMax ? roomsLabel(p) : null],
+    ["Планировка", roomsLabel(p) || null],
     ["Площадь", p.area ? `${p.area} м²` : null],
     ["Санузлы", p.bathrooms ? String(p.bathrooms) : null],
     ["Статус", p.tags.includes("Новостройка") || p.isProject ? "Новостройка" : p.tags.includes("Вторичное жилье") ? "Вторичное жильё" : null],
@@ -137,7 +137,7 @@ export default function ObjectPage({ d, all, geo }: { d: Details; all: Property[
             <ul className="mt-5 flex flex-wrap gap-2" aria-label="Подборки с этим объектом">
               {chips.map((c) => (
                 <li key={c.href + c.label}>
-                  <Link href={c.href} className="inline-block rounded-full bg-white px-3.5 py-2 text-xs font-bold text-brand-500 ring-1 ring-brand-500/15 transition-[box-shadow,color] hover:ring-brand-500/50">{c.label}</Link>
+                  <Link href={c.href} className={`inline-block rounded-full px-3.5 py-2 text-xs font-bold transition-[box-shadow,color,filter] ${c.label === "Под гражданство" ? "bg-alert text-white ring-1 ring-alert hover:brightness-110" : "bg-white text-brand-500 ring-1 ring-brand-500/15 hover:ring-brand-500/50"}`}>{c.label}</Link>
                 </li>
               ))}
             </ul>

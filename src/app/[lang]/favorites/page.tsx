@@ -102,7 +102,7 @@ export default async function Favorites({ searchParams }: Props) {
     const sea = fact("До моря"), air = fact("До аэропорта");
     return {
       id: p.id,
-      chip: `ID ${p.id} · ${roomsLabel(p)}, ${where}`,
+      chip: `ID ${p.id} · ${[roomsLabel(p), where].filter(Boolean).join(", ")}`,
       head: (
         <>
           <Link href={cardPath(p)} className="group block">
@@ -121,7 +121,7 @@ export default async function Favorites({ searchParams }: Props) {
           {p.districtSlug ? `${where}, ${cityName(p.city)}` : where}
         </Link>,
         p.types.join(", ") || (p.isProject ? "Новостройка" : "—"),
-        roomsLabel(p),
+        roomsLabel(p) || "—",
         p.area ? `${p.priceMax ? "от " : ""}${p.area} м²` : "—",
         p.bathrooms ? String(p.bathrooms) : "—",
         fact("Этажность") ?? "—",
