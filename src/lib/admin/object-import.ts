@@ -5,6 +5,7 @@
 import "server-only";
 import { API_BASE, rowFromAzpo, unique, type AzpoObject } from "@/lib/azpo-feed";
 import { db } from "@/lib/db";
+import { AZPO_TOTAL_KEY } from "@/lib/admin/objects";
 
 const BATCH_MAX = 25;
 
@@ -24,11 +25,20 @@ async function getJson(url: string, timeout: number) {
 
 const validId = (id: unknown): id is number => Number.isInteger(id) && (id as number) > 0 && (id as number) < 900000;
 
-/** Of these azpo.ru ids, the ones the admin does not have and did not delete. */
+/**
+ * Of these azpo.ru ids (the whole azpo.ru catalogue), the ones the admin does not have and did not delete.
+ * Also remembers how many objects azpo.ru has: until the admin has them all, the site still takes the rest
+ * from azpo.ru and never shows the moved part alone.
+ */
 export async function missingIds(ids: number[]) {
   const sql = await db();
+  const all = unique(ids.filter(validId));
   const have = new Set((await sql<{ id: number }[]>`select id from objects union select id from objects_removed`).map((r) => r.id));
-  return unique(ids.filter(validId)).filter((id) => !have.has(id)).sort((a, b) => a - b);
+  if (all.length) {
+    await sql`insert into schema_meta (key, value) values (${AZPO_TOTAL_KEY}, ${String(all.length)})
+              on conflict (key) do update set value = excluded.value`;
+  }
+  return all.filter((id) => !have.has(id)).sort((a, b) => a - b);
 }
 
 /** What is left to move, with the list read by this server (the admin page reads it itself when it can). */

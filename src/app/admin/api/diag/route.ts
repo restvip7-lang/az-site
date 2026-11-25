@@ -38,6 +38,19 @@ export async function GET() {
         new Promise<string>((ok) => setTimeout(() => ok("timeout"), 5000)),
       ]).catch((err: { code?: string }) => `error ${err.code ?? ""}`);
       out.objects = { count: objects, ms: Date.now() - t1 };
+      // Database sessions busy right now: a stuck move or a held lock shows up here (no query text).
+      out.activity = await Promise.race([
+        (async () => {
+          const [{ statement_timeout }] = await sql<{ statement_timeout: string }[]>`show statement_timeout`;
+          const busy = await sql<{ state: string | null; wait: string | null; secs: number | null }[]>`
+            select state, wait_event_type || ':' || wait_event as wait, extract(epoch from now() - coalesce(xact_start, query_start))::int as secs
+            from pg_stat_activity
+            where datname = current_database() and pid <> pg_backend_pid() and backend_type = 'client backend' and state is distinct from 'idle'
+            order by secs desc nulls last limit 10`;
+          return { statement_timeout, busy };
+        })(),
+        new Promise<string>((ok) => setTimeout(() => ok("timeout"), 5000)),
+      ]).catch((err: { code?: string }) => `error ${err.code ?? ""}`);
     } catch (err) {
       const e = err as { code?: string; name?: string };
       out.db = { configured: true, connected: false, error: e.code ?? e.name ?? "error" };

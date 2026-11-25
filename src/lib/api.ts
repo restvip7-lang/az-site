@@ -101,13 +101,13 @@ async function loadFeed(lang: string, attempts: number, timeout: number): Promis
 async function loadAllProperties(lang: string): Promise<Property[]> {
   const started = Date.now();
   const own = await catalogueObjects();
-  // Once objects have been moved into the admin, the old catalogue only adds objects that are not moved yet:
-  // the site does not wait long for it. Before that it is the catalogue, and gets more time.
-  const feed = await loadFeed(lang, own.imported ? 1 : 2, own.imported ? 8_000 : 25_000).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
-  console.log(`catalogue: ${own.rows.length} from the admin, azpo.ru list ${feed instanceof Error ? `failed (${feed.message})` : feed.length}, ${Date.now() - started} ms`);
-  if (feed instanceof Error && !own.imported) {
-    // Nothing has been moved into the admin yet, so the old catalogue is the catalogue: throwing keeps
-    // an empty list out of the cache (the previous list stays in use).
+  // Once every azpo.ru object is in the admin, the old catalogue only adds objects that appeared there since:
+  // the site does not wait long for it. Until then (nothing moved, or a move that stopped half-way) it holds
+  // the rest of the catalogue and gets more time.
+  const feed = await loadFeed(lang, own.complete ? 1 : 2, own.complete ? 8_000 : 25_000).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
+  console.log(`catalogue: ${own.rows.length} from the admin (${own.complete ? "all moved" : `${own.imported} moved`}), azpo.ru list ${feed instanceof Error ? `failed (${feed.message})` : feed.length}, ${Date.now() - started} ms`);
+  if (feed instanceof Error && !own.complete) {
+    // Part of the catalogue is missing: throwing keeps a short list out of the cache (the previous list stays in use).
     throw feed;
   }
   const eurPerUsd = await getEurPerUsd();

@@ -51,6 +51,22 @@ export interface ObjectRow {
 
 export { SOURCE_AZPO } from "@/lib/azpo-feed";
 import { SOURCE_AZPO } from "@/lib/azpo-feed";
+/** Where the size of the azpo.ru catalogue at the last check of the move is kept (schema_meta). */
+export const AZPO_TOTAL_KEY = "azpo_total";
+
+/**
+ * Whether the move from azpo.ru is done: the admin has (or deleted) every object azpo.ru had at the last check,
+ * give or take a few that azpo.ru would not hand over. From then on the catalogue no longer needs azpo.ru.
+ */
+export const moveDone = (moved: number, expected: number) => expected > 0 && moved >= expected - Math.max(5, Math.ceil(expected / 100));
+
+export async function moveComplete() {
+  const sql = await db();
+  const [r] = await sql<{ moved: number; expected: number }[]>`
+    select (select count(*)::int from objects where source = ${SOURCE_AZPO}) + (select count(*)::int from objects_removed) as moved,
+           coalesce((select value::int from schema_meta where key = ${AZPO_TOTAL_KEY}), 0) as expected`;
+  return moveDone(r.moved, r.expected);
+}
 export const ADMIN_ID_MIN = 900000;
 
 export interface ObjectFilter {
@@ -105,11 +121,12 @@ export type CatalogueRow = Omit<ObjectRow, "description" | "installments" | "map
  * and deleted catalogue objects): those are not taken from the old azpo.ru catalogue.
  * An unconfigured or unreachable database adds nothing and owns nothing.
  */
-export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned: Set<number>; imported: number }> {
-  if (!hasDb()) return { rows: [], owned: new Set(), imported: 0 };
+export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned: Set<number>; imported: number; complete: boolean }> {
+  const none = { rows: [], owned: new Set<number>(), imported: 0, complete: false };
+  if (!hasDb()) return none;
   try {
     const sql = await limit(db(), 8000, "database");
-    const [rows, ids] = await limit(Promise.all([
+    const [rows, ids, total] = await limit(Promise.all([
       sql<CatalogueRow[]>`
         select id, source, published, is_project, title, city, district, types, layouts, bed_min, bed_max, bathrooms, bathrooms_max,
           area, area_max, floor, floors, year, furnished, price, price_max, currency, tags, features, views, heating,
@@ -118,11 +135,13 @@ export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned:
         from objects where published order by id desc`,
       sql<{ id: number; azpo: boolean }[]>`
         select id, source = ${SOURCE_AZPO} as azpo from objects union all select id, true from objects_removed`,
+      sql<{ value: string }[]>`select value from schema_meta where key = ${AZPO_TOTAL_KEY}`,
     ]), 8000, "admin objects");
-    return { rows, owned: new Set(ids.map((r) => r.id)), imported: ids.filter((r) => r.azpo).length };
+    const imported = ids.filter((r) => r.azpo).length;
+    return { rows, owned: new Set(ids.map((r) => r.id)), imported, complete: moveDone(imported, Number(total[0]?.value) || 0) };
   } catch (err) {
     console.error("Admin objects are not available", err);
-    return { rows: [], owned: new Set(), imported: 0 };
+    return none;
   }
 }
 
