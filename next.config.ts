@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
   // …but the redirect itself is done in middleware, so that old URLs reach their target in one hop.
   skipTrailingSlashRedirect: true,
   experimental: { globalNotFound: true },
+  // A page built at deploy time may wait for the azpo.ru list (up to 2 × 25 s from Vercel while the move into
+  // the admin is not finished) on top of the database: more than the default 60 s.
+  staticPageGenerationTimeout: 180,
   // Fonts and the photo that the share-image routes read from disk at runtime.
   outputFileTracingIncludes: {
     "/api/og/[file]": ["./src/fonts/og/**", "./public/img/dest/**"],
