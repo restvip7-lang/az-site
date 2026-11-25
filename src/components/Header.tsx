@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "./Logo";
+import { FavLink } from "./FavButton";
 import { CONTACTS } from "@/lib/contacts";
 import { R } from "@/lib/routes";
 
@@ -67,6 +68,7 @@ export default function Header({ cities }: { cities: MenuCity[] }) {
         </nav>
         <div className="flex items-center gap-2">
           <a href={CONTACTS.phoneHref} className="hidden text-sm font-black tabular-nums text-brand-700 xl:block">{CONTACTS.phone}</a>
+          <FavLink />
           <a href={CONTACTS.whatsapp} target="_blank" rel="noopener" className="btn btn-primary hidden !px-5 !py-2.5 text-sm lg:inline-flex">
             Консультация
           </a>

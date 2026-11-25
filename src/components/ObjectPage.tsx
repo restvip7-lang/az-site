@@ -11,6 +11,7 @@ import { R } from "@/lib/routes";
 import { JsonLd, SITE_URL } from "@/lib/site";
 import Gallery from "./Gallery";
 import LeadForm from "./LeadForm";
+import FavButton from "./FavButton";
 import PropertyCard from "./PropertyCard";
 import { Breadcrumbs } from "./catalog-blocks";
 import { SectionHead } from "./ui";
@@ -127,6 +128,7 @@ export default function ObjectPage({ d, all, geo }: { d: Details; all: Property[
             {cityName(p.city)}{p.districtSlug ? `, ${districtName(p.districtSlug, p.district)}` : ""}
             <span className="font-normal tabular-nums text-slate-500">· ID {p.id}</span>
           </p>
+          <div className="mt-4"><FavButton id={p.id} variant="page" /></div>
           <p className="mt-4 text-3xl font-black tabular-nums tracking-tight text-brand-500 lg:hidden">
             {p.priceMax ? "от " : ""}{formatPrice(p.price, p.currency)}
             {p.priceMax && <span className="ml-2 text-base font-normal text-slate-600">до {formatPrice(p.priceMax, p.currency)}</span>}

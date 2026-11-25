@@ -7,7 +7,7 @@ export const dynamic = "force-static";
 export function GET() {
   const closed = INDEXABLE ? "" : "Disallow: /\n";
   const body = `${INDEXABLE ? "" : "# Demo: the whole site is closed until launch on the real domain.\n"}User-agent: *
-${closed}Disallow: /favorites/
+${closed}Disallow: /*/favorites/
 Disallow: /search/
 Disallow: /*?*sort=
 Disallow: /*?*view=
@@ -15,7 +15,7 @@ Disallow: /api/
 Disallow: /admin/
 
 User-agent: Yandex
-${closed}Disallow: /favorites/
+${closed}Disallow: /*/favorites/
 Disallow: /search/
 Disallow: /api/
 Disallow: /admin/
