@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "api.azpo.com", pathname: "/api/files/**" },
       // Photos uploaded in the admin (Supabase Storage, public bucket).
       { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+      // Cover photos of the district guides (Unsplash licence: free use, hotlinking allowed).
+      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
     ],
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 828, 1080, 1280, 1920],

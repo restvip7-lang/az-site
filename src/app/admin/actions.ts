@@ -11,6 +11,7 @@ import { checkSetupCode, endSession, hashPassword, passwordProblem, requireStaff
 import { OBJECT_FACTS, getObject } from "@/lib/admin/objects";
 import { getArticle } from "@/lib/admin/articles";
 import { importBlog } from "@/lib/admin/importer";
+import { isGeo } from "@/lib/admin/options";
 import { normalisePath } from "@/lib/admin/seo";
 import { storage } from "@/lib/admin/storage";
 import { OBJECT_TAGS, type FormState } from "@/lib/admin/forms";
@@ -168,9 +169,13 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
   if (!isCategory(category)) return { error: "Выберите раздел." };
   if (!isSlug(slug)) return { error: "Адрес статьи: только латинские буквы, цифры и дефисы." };
   if (!body) return { error: "Добавьте текст статьи." };
+  const geo = str(fd, "geo");
+  if (geo && !isGeo(geo)) return { error: "Выберите место из списка." };
   const published = fd.get("published") === "on";
   const dateRaw = str(fd, "published_at");
-  const date = dateRaw ? new Date(`${dateRaw}T09:00:00Z`) : null;
+  let date = dateRaw ? new Date(`${dateRaw}T09:00:00Z`) : null;
+  // Today's date means "now": otherwise an article saved in the morning would vanish from the site until 9:00 UTC.
+  if (date && date > new Date() && dateRaw === new Date().toISOString().slice(0, 10)) date = new Date();
   const row = {
     category,
     slug,
@@ -183,6 +188,7 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
     seo_description: opt(fd, "seo_description"),
     published,
     published_at: date && !Number.isNaN(date.getTime()) ? date : published ? new Date() : null,
+    geo: geo || null,
   };
   let savedId = id;
   try {
@@ -192,6 +198,8 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
     if (id) {
       const before = await getArticle(id);
       if (!before) return { error: "Статья не найдена: возможно, её уже удалили." };
+      // An unchanged date keeps its exact time, so the order of the list doesn't move on every save.
+      if (before.published_at && dateRaw === before.published_at.toISOString().slice(0, 10)) row.published_at = before.published_at;
       await sql`update articles set ${sql(row)}, updated_at = now() where id = ${id}`;
       // The old address keeps working after a change of section or slug.
       if (before.published && (before.category !== category || before.slug !== slug)) {

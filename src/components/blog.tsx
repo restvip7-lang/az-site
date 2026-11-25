@@ -5,7 +5,8 @@ import type { ArticleRow } from "@/lib/admin/articles";
 import { MarkShapes } from "./ui";
 
 /** Photos in our storage go through the image optimiser; anything else is shown as is. */
-const optimisable = (src: string) => src.startsWith("/") || /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\//.test(src);
+const optimisable = (src: string) =>
+  src.startsWith("/") || /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\//.test(src) || src.startsWith("https://images.unsplash.com/photo-");
 
 export function Cover({ src, alt, sizes, priority = false, className = "" }: { src: string; alt: string; sizes: string; priority?: boolean; className?: string }) {
   if (optimisable(src)) return <Image src={src} alt={alt} fill sizes={sizes} priority={priority} className={`object-cover ${className}`} />;
@@ -57,5 +58,28 @@ export function ArticleCard({ a, big = false }: { a: ArticleRow; big?: boolean }
         <p className="mt-auto pt-5 text-xs font-bold text-slate-500">{articleDate(a.published_at)} · {readingMinutes(a.body)} мин чтения</p>
       </div>
     </article>
+  );
+}
+
+/** The district guide, offered on the catalogue page of that district. */
+export function GuideTeaser({ a }: { a: ArticleRow }) {
+  return (
+    <section aria-label="Гид по району" className="group relative mt-16 grid overflow-hidden rounded-[36px_10px_36px_10px] bg-white shadow-[0_1px_2px_rgb(22_52_87/0.06),0_18px_40px_-30px_rgb(22_52_87/0.6)] sm:grid-cols-[minmax(0,2fr)_3fr]">
+      <div className="relative aspect-[16/9] overflow-hidden bg-sand sm:aspect-auto sm:min-h-[220px]">
+        {a.cover ? (
+          <Cover src={a.cover} alt="" sizes="(min-width:640px) 480px, 100vw" className="transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+        ) : (
+          <div aria-hidden className="hatch-light absolute inset-0 bg-brand-500"><MarkShapes light className="absolute -bottom-4 -right-6 w-48 opacity-70" /></div>
+        )}
+      </div>
+      <div className="flex flex-col justify-center p-6 sm:p-10">
+        <p className="eyebrow text-brand-500">Гид по району</p>
+        <h2 className="mt-3 text-balance text-2xl font-black leading-tight tracking-tight text-ink sm:text-3xl">
+          <Link href={blogPath(a.category, a.slug)} className="after:absolute after:inset-0 group-hover:text-brand-500">{a.title}</Link>
+        </h2>
+        {a.excerpt && <p className="mt-3 max-w-xl text-pretty leading-relaxed text-slate-600">{a.excerpt}</p>}
+        <p className="mt-5 text-sm font-black text-brand-500">Плюсы, минусы, пляжи, транспорт · {readingMinutes(a.body)} мин чтения →</p>
+      </div>
+    </section>
   );
 }

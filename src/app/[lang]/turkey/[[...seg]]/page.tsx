@@ -12,11 +12,13 @@ import { alternates } from "@/lib/i18n";
 import { objectName } from "@/lib/paths";
 import { R } from "@/lib/routes";
 import { INDEXABLE, JsonLd, SITE_URL } from "@/lib/site";
+import { publishedArticles, type ArticleRow } from "@/lib/admin/articles";
 import { redirectFor, seoFor, withSeo, type SeoRow } from "@/lib/admin/seo";
 import CatalogHeader, { DEST_IMG } from "@/components/CatalogHeader";
 import CatalogListing, { type Nav } from "@/components/CatalogListing";
 import LeadForm from "@/components/LeadForm";
 import ObjectPage, { objectH1 } from "@/components/ObjectPage";
+import { GuideTeaser } from "@/components/blog";
 import { Breadcrumbs, Faq, GeoCards, LinkBlock, PriceStats, SeoText } from "@/components/catalog-blocks";
 
 // Landing pages and cards are regenerated in the background every 10 minutes (ISR);
@@ -102,10 +104,15 @@ export default async function Catalog({ params }: Props) {
     return <ObjectPage d={{ ...d, property: p }} all={all} geo={geo} />;
   }
 
-  return <Listing q={parsed.q} all={all} geo={geo} seo={await seoFor(listingPath(parsed.q))} />;
+  const q = parsed.q;
+  // The district guide from the blog, if there is one for this district.
+  const guide = q.district && q.page === 1
+    ? (await publishedArticles()).find((a) => a.category === "area-guides" && a.geo === `${q.city}/${q.district}`) ?? null
+    : null;
+  return <Listing q={q} all={all} geo={geo} seo={await seoFor(listingPath(q))} guide={guide} />;
 }
 
-function Listing({ q, all, geo, seo }: { q: Query; all: Property[]; geo: GeoIndex; seo: SeoRow | null }) {
+function Listing({ q, all, geo, seo, guide }: { q: Query; all: Property[]; geo: GeoIndex; seo: SeoRow | null; guide: ArticleRow | null }) {
   const k = kindOf(q);
   const items = select(all, q);
   const st = stats(items);
@@ -175,6 +182,7 @@ function Listing({ q, all, geo, seo }: { q: Query; all: Property[]; geo: GeoInde
         <LinkBlock id="refine-h" title="Уточнить запрос" items={refine(all, q)} />
       )}
 
+      {guide && <GuideTeaser a={guide} />}
       {q.page === 1 && <SeoText blocks={seoText(q, items, st, geo)} />}
       {q.page === 1 && isHub(k) && <PriceStats title={`Цены на недвижимость ${g.in}`} rows={typeRows} />}
       {q.page === 1 && <Faq items={faq(q, st, geo)} />}

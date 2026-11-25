@@ -1,5 +1,11 @@
 // Schema migrations, applied in order and recorded in schema_meta.version. Never edit a shipped step: add a new one.
-export const MIGRATIONS: string[] = [
+// A step is SQL text, or a function for steps that insert data (it runs inside the same transaction).
+import type { TransactionSql } from "postgres";
+import guides from "@/content/area-guides.json";
+
+export type Migration = string | ((tx: TransactionSql) => Promise<unknown>);
+
+export const MIGRATIONS: Migration[] = [
   `
   create table staff (
     id serial primary key,
@@ -85,4 +91,21 @@ export const MIGRATIONS: string[] = [
     created_at timestamptz not null default now()
   );
   `,
+
+  // Articles can name the district (or city) they are about: "alanya/mahmutlar".
+  `alter table articles add column if not exists geo text;`,
+
+  // District guides for Alanya, written for Kleo Homes and adapted for AZPO (src/content/area-guides.json).
+  // Inserted once; after that they are ordinary articles, edited or deleted in the admin.
+  async (tx) => {
+    const now = Date.now();
+    for (const [i, g] of guides.entries()) {
+      // One minute apart, so the list keeps the order of the coast (west to east).
+      const at = new Date(now - i * 60_000);
+      await tx`
+        insert into articles (category, slug, title, excerpt, body, cover, author, seo_title, seo_description, published, published_at, geo)
+        values ('area-guides', ${g.slug}, ${g.title}, ${g.excerpt}, ${g.body}, ${g.cover}, 'AZPO Estate', ${g.seo_title}, ${g.seo_description}, true, ${at}, ${g.geo})
+        on conflict (category, slug) do nothing`;
+    }
+  },
 ];

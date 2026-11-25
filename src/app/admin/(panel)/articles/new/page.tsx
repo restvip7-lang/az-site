@@ -1,4 +1,5 @@
 import { requireStaff } from "@/lib/admin/auth";
+import { geoOptions } from "@/lib/admin/options";
 import { saveArticleAction } from "../../../actions";
 import ArticleForm from "@/components/admin/ArticleForm";
 import PageHead from "@/components/admin/PageHead";
@@ -10,7 +11,7 @@ export default async function NewArticle() {
   return (
     <>
       <PageHead title="Новая статья" back={{ href: "/admin/articles/", label: "Все статьи" }} />
-      <ArticleForm action={saveArticleAction} values={{ category: "news", slug: "", title: "", excerpt: "", body: "", cover: "", author: me.name, seo_title: "", seo_description: "", published: false, published_at: "" }} />
+      <ArticleForm action={saveArticleAction} places={geoOptions()} values={{ category: "news", slug: "", title: "", excerpt: "", body: "", cover: "", author: me.name, seo_title: "", seo_description: "", published: false, published_at: "", geo: "" }} />
     </>
   );
 }

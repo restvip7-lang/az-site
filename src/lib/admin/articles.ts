@@ -18,6 +18,8 @@ export interface ArticleRow {
   published: boolean;
   published_at: Date | null;
   source_url: string | null;
+  /** What the article is about on the map: "alanya/mahmutlar" or "alanya". */
+  geo: string | null;
   updated_at: Date;
 }
 
@@ -51,7 +53,7 @@ const loadPublished = unstable_cache(
       return [];
     }
   },
-  ["published-articles-v1"],
+  ["published-articles-v2"],
   { revalidate: 600, tags: ["articles"] },
 );
 

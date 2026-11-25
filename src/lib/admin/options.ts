@@ -16,3 +16,16 @@ export async function objectOptions(): Promise<ObjectOptions> {
   });
   return { cities, types: TYPES.map((t) => ({ api: t.api, name: t.name })) };
 }
+
+/** Places an article can be about: "alanya" (the whole city) or "alanya/mahmutlar". */
+export function geoOptions() {
+  return Object.entries(CITIES).flatMap(([key, c]) => [
+    { value: key, label: `${c.ru}: весь город` },
+    ...(c.order ?? []).map((d) => ({ value: `${key}/${d}`, label: `${c.ru} · ${districtName(d)}` })),
+  ]);
+}
+
+export const isGeo = (v: string) => {
+  const [city, district, extra] = v.split("/");
+  return !extra && Boolean(CITIES[city]) && (!district || (CITIES[city].order ?? []).includes(district));
+};

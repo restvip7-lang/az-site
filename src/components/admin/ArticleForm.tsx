@@ -19,8 +19,11 @@ export interface ArticleValues {
   seo_description: string;
   published: boolean;
   published_at: string; // yyyy-mm-dd
+  geo: string; // "alanya/mahmutlar", "alanya" or ""
   url?: string; // public URL when published
 }
+
+export type GeoOption = { value: string; label: string };
 
 const TOOLS: [string, string, string][] = [
   ["Подзаголовок", "\n## ", ""],
@@ -31,7 +34,7 @@ const TOOLS: [string, string, string][] = [
   ["Цитата", "\n> ", ""],
 ];
 
-export default function ArticleForm({ action, values }: { action: (s: FormState, fd: FormData) => Promise<FormState>; values: ArticleValues }) {
+export default function ArticleForm({ action, values, places }: { action: (s: FormState, fd: FormData) => Promise<FormState>; values: ArticleValues; places: GeoOption[] }) {
   const [title, setTitle] = useState(values.title);
   const [slug, setSlug] = useState(values.slug);
   const [slugTouched, setSlugTouched] = useState(Boolean(values.id));
@@ -76,6 +79,14 @@ export default function ArticleForm({ action, values }: { action: (s: FormState,
               <span className="adm-hint">Латиницей, через дефис. Заполняется из заголовка.</span>
             </label>
           </div>
+          <label className="block">
+            <span className="adm-label">О каком месте статья</span>
+            <select name="geo" defaultValue={values.geo} className="adm-input">
+              <option value="">Не привязана к месту</option>
+              {places.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
+            <span className="adm-hint">Для гидов по районам: под статьёй появятся объекты этого района, а в каталоге района — ссылка на гид.</span>
+          </label>
           <label className="block">
             <span className="adm-label">Анонс</span>
             <textarea name="excerpt" rows={2} defaultValue={values.excerpt} className="adm-input" placeholder="1–2 предложения для списка статей" />

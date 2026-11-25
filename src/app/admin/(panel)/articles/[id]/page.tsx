@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/admin/auth";
 import { getArticle } from "@/lib/admin/articles";
+import { geoOptions } from "@/lib/admin/options";
 import { blogPath } from "@/lib/blog";
 import { deleteArticleAction, saveArticleAction } from "../../../actions";
 import { ConfirmButton } from "@/components/admin/AdminUI";
@@ -24,10 +25,11 @@ export default async function EditArticle({ params, searchParams }: { params: Pr
       <ArticleForm
         key={a.updated_at.toISOString()}
         action={saveArticleAction}
+        places={geoOptions()}
         values={{
           id: a.id, category: a.category, slug: a.slug, title: a.title, excerpt: a.excerpt ?? "", body: a.body, cover: a.cover ?? "", author: a.author ?? "",
           seo_title: a.seo_title ?? "", seo_description: a.seo_description ?? "", published: a.published, published_at: day(a.published_at),
-          url: a.published ? url : undefined,
+          geo: a.geo ?? "", url: a.published ? url : undefined,
         }}
       />
       <form action={deleteArticleAction} className="mt-10 border-t border-brand-500/10 pt-6">

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { publishedArticles } from "@/lib/admin/articles";
+import { publishedArticles, type ArticleRow } from "@/lib/admin/articles";
+import { getAllProperties, toCard } from "@/lib/api";
+import { listingPath } from "@/lib/catalog";
+import { CITIES, geoIn } from "@/lib/geo";
 import { redirectFor, seoFor, withSeo } from "@/lib/admin/seo";
 import { CATEGORY_BY_SLUG, blogPath, readingMinutes } from "@/lib/blog";
 import { CONTACTS } from "@/lib/contacts";
@@ -10,6 +13,7 @@ import { Markdown, outline, parseBlocks, plainText } from "@/lib/markdown";
 import { R } from "@/lib/routes";
 import { JsonLd, SITE_URL } from "@/lib/site";
 import LeadForm from "@/components/LeadForm";
+import PropertyCard from "@/components/PropertyCard";
 import { ArticleCard, Cover, articleDate } from "@/components/blog";
 import { Breadcrumbs } from "@/components/catalog-blocks";
 import { Arrow } from "@/components/ui";
@@ -23,6 +27,30 @@ type Props = { params: Promise<{ lang: string; category: string; slug: string }>
 
 async function find(category: string, slug: string) {
   return (await publishedArticles()).find((a) => a.category === category && a.slug === slug) ?? null;
+}
+
+/** "alanya/mahmutlar" → { city, district }, only for places the catalogue knows. */
+function placeOf(a: ArticleRow) {
+  const [city, district] = (a.geo ?? "").split("/");
+  return city && CITIES[city] ? { city, district: district || undefined } : null;
+}
+
+/** Same section first; for a district guide, the nearest districts along the coast. */
+function relatedTo(a: ArticleRow, all: ArticleRow[]) {
+  const place = placeOf(a);
+  const order = place ? CITIES[place.city].order ?? [] : [];
+  const pos = (x: ArticleRow) => {
+    const p = placeOf(x);
+    const i = p && p.city === place?.city && p.district ? order.indexOf(p.district) : -1;
+    const j = place?.district ? order.indexOf(place.district) : -1;
+    return i < 0 || j < 0 ? 99 : Math.abs(i - j);
+  };
+  return all
+    .filter((x) => x.id !== a.id)
+    .map((x, i) => ({ x, rank: [Number(x.category !== a.category), pos(x), i] }))
+    .sort((p, q) => p.rank[0] - q.rank[0] || p.rank[1] - q.rank[1] || p.rank[2] - q.rank[2])
+    .slice(0, 3)
+    .map((r) => r.x);
 }
 
 const describe = (a: { seo_description: string | null; excerpt: string | null; body: string }) =>
@@ -59,7 +87,13 @@ export default async function ArticlePage({ params }: Props) {
   const url = blogPath(a.category, a.slug);
   const blocks = parseBlocks(a.body);
   const toc = outline(blocks);
-  const related = (await publishedArticles()).filter((x) => x.id !== a.id).sort((x, y) => Number(y.category === a.category) - Number(x.category === a.category)).slice(0, 3);
+  const related = relatedTo(a, await publishedArticles());
+
+  // Objects of the place the article is about: the guide ends with what can be bought there.
+  const place = placeOf(a);
+  const here = place ? (await getAllProperties()).filter((p) => p.city === place.city && (!place.district || p.districtSlug === place.district)) : [];
+  const picks = [...here].sort((x, y) => Number(y.images.length > 0) - Number(x.images.length > 0)).slice(0, 3).map((p) => toCard(p));
+  const where = place ? geoIn(place.city, place.district) : "";
 
   const ld = {
     "@context": "https://schema.org",
@@ -117,6 +151,18 @@ export default async function ArticlePage({ params }: Props) {
           </aside>
         </div>
       </article>
+
+      {place && picks.length > 0 && (
+        <section aria-labelledby="here-h" className="mt-16">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <h2 id="here-h" className="flex items-center gap-3 text-2xl font-black tracking-tight text-ink sm:text-3xl">
+              <span aria-hidden className="h-6 w-1.5 -skew-x-[20deg] bg-sky" />Недвижимость {where}
+            </h2>
+            <Link href={listingPath(place)} className="btn btn-ghost">Все объекты: {here.length} <Arrow /></Link>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{picks.map((p) => <PropertyCard key={p.id} p={p} />)}</div>
+        </section>
+      )}
 
       <section id="article-form" aria-labelledby="form-h" className="mt-16 grid scroll-mt-24 overflow-hidden rounded-[36px_10px_36px_10px] bg-brand-500 text-white lg:grid-cols-[1.2fr_1fr]">
         <div className="hatch-light p-6 sm:p-10">

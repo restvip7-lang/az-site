@@ -57,7 +57,8 @@ export function ensureSchema() {
     for (const [i, step] of MIGRATIONS.entries()) {
       if (i < version) continue;
       await db.begin(async (tx) => {
-        await tx.unsafe(step);
+        if (typeof step === "string") await tx.unsafe(step);
+        else await step(tx);
         await tx`insert into schema_meta (key, value) values ('version', ${String(i + 1)})
                  on conflict (key) do update set value = excluded.value`;
       });
