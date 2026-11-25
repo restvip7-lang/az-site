@@ -99,7 +99,11 @@ async function loadFeed(lang: string): Promise<AzpoObject[]> {
 }
 
 async function loadAllProperties(lang: string): Promise<Property[]> {
-  const [feed, own] = await Promise.all([loadFeed(lang).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err)))), catalogueObjects()]);
+  const started = Date.now();
+  const [feed, own] = await Promise.all([
+    loadFeed(lang).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err)))).finally(() => console.log(`catalogue: azpo.ru list ${Date.now() - started} ms`)),
+    catalogueObjects().finally(() => console.log(`catalogue: admin objects ${Date.now() - started} ms`)),
+  ]);
   if (feed instanceof Error) {
     // Before anything has been moved into the admin the old catalogue is the catalogue: throwing keeps
     // an empty list out of the cache. Afterwards the site goes on with the admin's objects alone.
@@ -214,7 +218,7 @@ export async function getPropertyDetails(id: number, lang = "ru") {
   const own = await siteObject(id);
   if (own.owned) return own.row ? detailsFromRow(own.row) : null;
   try {
-    const res = await fetch(`${API_BASE}/dashboard/properties/${id}/${lang}`, { next: { revalidate: REVALIDATE } });
+    const res = await fetch(`${API_BASE}/dashboard/properties/${id}/${lang}`, { next: { revalidate: REVALIDATE }, signal: AbortSignal.timeout(15_000) });
     if (!res.ok) return null;
     const j = await res.json();
     const d = Array.isArray(j) ? j[0] : j;

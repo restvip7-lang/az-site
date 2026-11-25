@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { db, hasDb } from "@/lib/db";
 import { checkStorage } from "@/lib/admin/storage";
 import { currentStaff } from "@/lib/admin/auth";
+import { API_BASE } from "@/lib/azpo-feed";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +31,26 @@ export async function GET() {
       const [{ value }] = await sql`select value from schema_meta where key = 'version'`;
       const [{ n }] = await sql`select count(*)::int as n from staff`;
       out.db = { configured: true, connected: true, schema: Number(value), staff: n > 0, ms: Date.now() - started };
+      // The objects table on its own, with a time limit: a lock on it shows up here as "timeout".
+      const t1 = Date.now();
+      const objects = await Promise.race([
+        sql`select count(*)::int as n from objects`.then(([r]) => r.n as number),
+        new Promise<string>((ok) => setTimeout(() => ok("timeout"), 5000)),
+      ]).catch((err: { code?: string }) => `error ${err.code ?? ""}`);
+      out.objects = { count: objects, ms: Date.now() - t1 };
     } catch (err) {
       const e = err as { code?: string; name?: string };
       out.db = { configured: true, connected: false, error: e.code ?? e.name ?? "error" };
     }
+  }
+  // The old catalogue as the site reads it (size and time from this server).
+  const t2 = Date.now();
+  try {
+    const res = await fetch(`${API_BASE}/real-estates/ru?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+    const body = await res.text();
+    out.feed = { status: res.status, bytes: body.length, ms: Date.now() - t2 };
+  } catch (err) {
+    out.feed = { error: err instanceof Error ? err.name : "error", ms: Date.now() - t2 };
   }
   return NextResponse.json(out, { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 }

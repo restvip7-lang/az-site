@@ -3,6 +3,11 @@
 import "server-only";
 import { db, hasDb } from "@/lib/db";
 
+/** A public page never waits long for the database: after `ms` it goes on without it. */
+function limit<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+  return Promise.race([work, new Promise<T>((_, fail) => setTimeout(() => fail(new Error(`${what}: no answer in ${ms} ms`)), ms))]);
+}
+
 export type Unit = "m" | "km";
 
 export interface ObjectRow {
@@ -103,8 +108,8 @@ export type CatalogueRow = Omit<ObjectRow, "description" | "installments" | "map
 export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned: Set<number>; imported: number }> {
   if (!hasDb()) return { rows: [], owned: new Set(), imported: 0 };
   try {
-    const sql = await db();
-    const [rows, ids] = await Promise.all([
+    const sql = await limit(db(), 8000, "database");
+    const [rows, ids] = await limit(Promise.all([
       sql<CatalogueRow[]>`
         select id, source, published, is_project, title, city, district, types, layouts, bed_min, bed_max, bathrooms, bathrooms_max,
           area, area_max, floor, floors, year, furnished, price, price_max, currency, tags, features, views, heating,
@@ -113,7 +118,7 @@ export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned:
         from objects where published order by id desc`,
       sql<{ id: number; azpo: boolean }[]>`
         select id, source = ${SOURCE_AZPO} as azpo from objects union all select id, true from objects_removed`,
-    ]);
+    ]), 8000, "admin objects");
     return { rows, owned: new Set(ids.map((r) => r.id)), imported: ids.filter((r) => r.azpo).length };
   } catch (err) {
     console.error("Admin objects are not available", err);
@@ -128,12 +133,13 @@ export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned:
 export async function siteObject(id: number): Promise<{ owned: boolean; row: ObjectRow | null }> {
   if (!hasDb()) return { owned: id > ADMIN_ID_MIN, row: null };
   try {
-    const sql = await db();
-    const [row] = await sql<ObjectRow[]>`select * from objects where id = ${id}`;
+    const sql = await limit(db(), 5000, "database");
+    const [row] = await limit(sql<ObjectRow[]>`select * from objects where id = ${id}`, 5000, "object");
     if (row) return { owned: true, row: row.published ? row : null };
-    const [gone] = await sql`select 1 from objects_removed where id = ${id}`;
+    const [gone] = await limit(sql`select 1 from objects_removed where id = ${id}`, 5000, "removed object");
     return { owned: Boolean(gone) || id > ADMIN_ID_MIN, row: null };
-  } catch {
+  } catch (err) {
+    console.error("Admin object is not available", err);
     return { owned: id > ADMIN_ID_MIN, row: null };
   }
 }
