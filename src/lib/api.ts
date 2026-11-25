@@ -152,7 +152,21 @@ export function fromAdmin(o: CatalogueRow | Omit<ObjectRow, "updated_at">): Prop
 
 // The key stays "v4": the list cached under it is still valid (fields added since then are optional),
 // and a new key would leave the site without any list while api.azpo.ru is slow to answer from Vercel.
-const cachedAll = unstable_cache(loadAllProperties, ["all-properties-v4"], { revalidate: REVALIDATE, tags: ["properties"] });
+const cachedAll = unstable_cache(loadShared, ["all-properties-v4"], { revalidate: REVALIDATE, tags: ["properties"] });
+
+/**
+ * One build of the list per server instance at a time: after a change in the admin every catalogue page
+ * asks for the list at once, and each reading all 900 objects from the database made them all slow.
+ */
+const building = new Map<string, Promise<Property[]>>();
+function loadShared(lang: string): Promise<Property[]> {
+  let p = building.get(lang);
+  if (!p) {
+    p = loadAllProperties(lang).finally(() => building.delete(lang));
+    building.set(lang, p);
+  }
+  return p;
+}
 
 export async function getAllProperties(lang = "ru"): Promise<Property[]> {
   try {

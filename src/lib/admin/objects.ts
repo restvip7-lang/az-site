@@ -136,7 +136,7 @@ export async function catalogueObjects(): Promise<{ rows: CatalogueRow[]; owned:
       sql<{ id: number; azpo: boolean }[]>`
         select id, source = ${SOURCE_AZPO} as azpo from objects union all select id, true from objects_removed`,
       sql<{ value: string }[]>`select value from schema_meta where key = ${AZPO_TOTAL_KEY}`,
-    ]), 8000, "admin objects");
+    ]), 20_000, "admin objects"); // the whole catalogue: some 900 rows
     const imported = ids.filter((r) => r.azpo).length;
     return { rows, owned: new Set(ids.map((r) => r.id)), imported, complete: moveDone(imported, Number(total[0]?.value) || 0) };
   } catch (err) {
