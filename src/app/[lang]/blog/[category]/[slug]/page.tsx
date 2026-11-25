@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { publishedArticles, type ArticleRow } from "@/lib/admin/articles";
 import { getAllProperties, toCard } from "@/lib/api";
 import { listingPath } from "@/lib/catalog";
+import { ALANYA_SCORES, SCORE_LABELS, scoreFor, type ScoreKey } from "@/lib/district-scores";
 import { CITIES, geoIn } from "@/lib/geo";
 import { redirectFor, seoFor, withSeo } from "@/lib/admin/seo";
 import { CATEGORY_BY_SLUG, blogPath, readingMinutes } from "@/lib/blog";
@@ -14,6 +15,7 @@ import { R } from "@/lib/routes";
 import { JsonLd, SITE_URL } from "@/lib/site";
 import LeadForm from "@/components/LeadForm";
 import PropertyCard from "@/components/PropertyCard";
+import ScoreDots from "@/components/ScoreDots";
 import { ArticleCard, Cover, articleDate } from "@/components/blog";
 import { Breadcrumbs } from "@/components/catalog-blocks";
 import { Arrow } from "@/components/ui";
@@ -94,6 +96,7 @@ export default async function ArticlePage({ params }: Props) {
   const here = place ? (await getAllProperties()).filter((p) => p.city === place.city && (!place.district || p.districtSlug === place.district)) : [];
   const picks = [...here].sort((x, y) => Number(y.images.length > 0) - Number(x.images.length > 0)).slice(0, 3).map((p) => toCard(p));
   const where = place ? geoIn(place.city, place.district) : "";
+  const score = place?.city === "alanya" && place.district ? scoreFor(place.district) : null;
 
   const ld = {
     "@context": "https://schema.org",
@@ -142,6 +145,24 @@ export default async function ArticlePage({ params }: Props) {
                   {toc.map((h) => <li key={h.id}><a href={`#${h.id}`} className="font-bold text-ink/80 transition-colors duration-150 hover:text-brand-500">{h.text}</a></li>)}
                 </ol>
               </nav>
+            )}
+            {score && (
+              <div className="rounded-[24px_8px_24px_8px] bg-white p-6">
+                <p className="eyebrow text-brand-500">Оценка района</p>
+                <dl className="mt-4 space-y-3 text-sm">
+                  {(Object.keys(SCORE_LABELS) as ScoreKey[]).map((k) => (
+                    <div key={k} className="flex items-center justify-between gap-3">
+                      <dt className="font-bold text-ink/80">{SCORE_LABELS[k]}</dt>
+                      <dd><ScoreDots n={score.scores[k]} label={SCORE_LABELS[k]} /></dd>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-3 border-t border-brand-500/10 pt-3">
+                    <dt className="font-bold text-ink/80">До центра</dt>
+                    <dd className="font-black tabular-nums text-ink">{score.toCenter ? `${String(score.toCenter).replace(".", ",")} км` : "в центре"}</dd>
+                  </div>
+                </dl>
+                <Link href={`${blogPath("area-guides")}#compare`} className="mt-5 inline-flex text-sm font-black text-brand-500 hover:underline">Сравнить с {ALANYA_SCORES.length - 1} другими районами →</Link>
+              </div>
             )}
             <div className="hatch-light rounded-[24px_8px_24px_8px] bg-brand-500 p-6 text-white">
               <p className="text-xl font-black leading-tight">Нужна консультация по вашей ситуации?</p>

@@ -19,6 +19,7 @@ import CatalogListing, { type Nav } from "@/components/CatalogListing";
 import LeadForm from "@/components/LeadForm";
 import ObjectPage, { objectH1 } from "@/components/ObjectPage";
 import { GuideTeaser } from "@/components/blog";
+import { blogPath } from "@/lib/blog";
 import { Breadcrumbs, Faq, GeoCards, LinkBlock, PriceStats, SeoText } from "@/components/catalog-blocks";
 
 // Landing pages and cards are regenerated in the background every 10 minutes (ISR);
@@ -169,6 +170,13 @@ function Listing({ q, all, geo, seo, guide }: { q: Query; all: Property[]; geo: 
       <JsonLd data={itemListLd} />
       <CatalogHeader title={seo?.h1 ?? h1(q, geo)} sub={seo?.intro ?? lead(q, st, geo)} img={img} eyebrow={q.page > 1 ? `Страница ${q.page} из ${pages}` : "Каталог AZPO"} />
       {children.length > 0 && <GeoCards title={q.city ? `Районы: ${cityName(q.city)}` : "Города"} items={children} images={childImages} />}
+      {k === "city" && q.city === "alanya" && q.page === 1 && (
+        <p className="-mt-6 mb-10">
+          <Link href={`${blogPath("area-guides")}#compare`} className="text-sm font-black text-brand-500 underline decoration-brand-500/30 underline-offset-4 transition-colors duration-150 hover:decoration-brand-500">
+            Сравнить районы Алании: где тише, ближе к морю и дешевле →
+          </Link>
+        </p>
+      )}
 
       <CatalogListing key={basePath} initial={pageItems} total={items.length} page={q.page} pages={pages} basePath={basePath} nav={nav} />
 
