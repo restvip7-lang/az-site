@@ -19,7 +19,62 @@ async function checkBlog() {
   }
 }
 
-export async function GET() {
+const isDateKey = (k: string) => /date|created|updated|_at$|time/i.test(k);
+
+/**
+ * How fresh the sources are (asked with ?dates): the newest posts of the azpo.ru blog, the newest objects
+ * of the azpo.ru and azpo.com catalogues with any date fields they carry, and the latest changes in the admin.
+ */
+async function freshness() {
+  const out: Record<string, unknown> = {};
+  const blogApi = process.env.AZPO_BLOG_API ?? "https://azpo.ru/ru/blog/wp-json/wp/v2";
+  try {
+    const res = await fetch(`${blogApi}/posts?per_page=5&_fields=id,date,modified,link,title`, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 (compatible; AZPO site check)" }, signal: AbortSignal.timeout(15000) });
+    const posts = (await res.json()) as { id: number; date: string; modified: string; link: string; title?: { rendered?: string } }[];
+    out.blog = { total: Number(res.headers.get("x-wp-total") ?? 0), newest: posts.map((p) => ({ id: p.id, date: p.date, modified: p.modified, title: p.title?.rendered, link: p.link })) };
+  } catch (err) {
+    out.blog = { error: err instanceof Error ? err.name : "error" };
+  }
+  for (const [key, base] of [["azpo_ru", API_BASE], ["azpo_com", "https://api.azpo.com/api"]] as const) {
+    try {
+      const res = await fetch(`${base}/real-estates/ru?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(40000) });
+      const list = ((await res.json()) as { realEstates?: Record<string, unknown>[] }).realEstates ?? [];
+      const newest = [...list].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5);
+      const pickDates = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k, v]) => isDateKey(k) && (typeof v === "string" || typeof v === "number")));
+      const images = (o: Record<string, unknown>) => ((o.images as { file_name?: string }[] | null) ?? []).map((i) => i.file_name).slice(0, 2);
+      let detail: Record<string, unknown> | undefined;
+      if (newest[0]) {
+        const d = await fetch(`${base}/dashboard/properties/${newest[0].id}/ru`, { cache: "no-store", signal: AbortSignal.timeout(20000) }).then((r) => r.json()).catch(() => null);
+        const obj = (Array.isArray(d) ? d[0] : d) as Record<string, unknown> | null;
+        if (obj) detail = { keys: Object.keys(obj), dates: pickDates(obj) };
+      }
+      out[key] = {
+        total: list.length,
+        keys: list[0] ? Object.keys(list[0]) : [],
+        newest: newest.map((o) => ({ id: o.id, title: o.title, dates: pickDates(o), images: images(o) })),
+        detail,
+      };
+    } catch (err) {
+      out[key] = { error: err instanceof Error ? err.name : "error" };
+    }
+  }
+  if (hasDb()) {
+    try {
+      const sql = await db();
+      const [o] = await sql`select count(*)::int as n, max(updated_at) as last_change, max(updated_at) filter (where source is null) as last_own, count(*) filter (where source is null)::int as own from objects`;
+      const [a] = await sql`select count(*)::int as n, max(published_at) as last_published, max(created_at) as last_created, max(updated_at) as last_change from articles`;
+      out.admin = { objects: o, articles: a };
+    } catch (err) {
+      out.admin = { error: (err as { code?: string }).code ?? "error" };
+    }
+  }
+  return out;
+}
+
+export async function GET(req: Request) {
+  if (new URL(req.url).searchParams.has("dates")) {
+    return NextResponse.json(await freshness(), { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+  }
   // Setting names only for signed-in staff; anyone else sees just whether things work.
   const staff = hasDb() ? await currentStaff().catch(() => null) : null;
   const env = staff ? Object.keys(process.env).filter((k) => /POSTGRES|SUPABASE|DATABASE/.test(k)).sort() : undefined;
