@@ -7,6 +7,7 @@ import { currentStaff } from "@/lib/admin/auth";
 import { API_BASE } from "@/lib/azpo-feed";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /** Whether the azpo.ru blog API (source of the import) answers from here, and how many posts it has. */
 async function checkBlog() {
@@ -37,11 +38,19 @@ async function freshness() {
   }
   for (const [key, base] of [["azpo_ru", API_BASE], ["azpo_com", "https://api.azpo.com/api"]] as const) {
     try {
-      const res = await fetch(`${base}/real-estates/ru?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(40000) });
+      const get = () => fetch(`${base}/real-estates/ru?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(60000) });
+      const res = await get().catch(get);
       const list = ((await res.json()) as { realEstates?: Record<string, unknown>[] }).realEstates ?? [];
-      const newest = [...list].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5);
+      const newest = [...list].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 8);
       const pickDates = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k, v]) => isDateKey(k) && (typeof v === "string" || typeof v === "number")));
       const images = (o: Record<string, unknown>) => ((o.images as { file_name?: string }[] | null) ?? []).map((i) => i.file_name).slice(0, 2);
+      // The API has no dates; the photo files do: their Last-Modified is when they were uploaded.
+      const uploaded = async (o: Record<string, unknown>) => {
+        const file = ((o.images as { file_name?: string }[] | null) ?? [])[0]?.file_name;
+        if (!file) return null;
+        const r = await fetch(`${base}/files/property-images/${encodeURIComponent(file)}`, { method: "HEAD", cache: "no-store", signal: AbortSignal.timeout(10000) }).catch(() => null);
+        return r?.headers.get("last-modified") ?? (r ? `status ${r.status}` : "no answer");
+      };
       let detail: Record<string, unknown> | undefined;
       if (newest[0]) {
         const d = await fetch(`${base}/dashboard/properties/${newest[0].id}/ru`, { cache: "no-store", signal: AbortSignal.timeout(20000) }).then((r) => r.json()).catch(() => null);
@@ -51,7 +60,7 @@ async function freshness() {
       out[key] = {
         total: list.length,
         keys: list[0] ? Object.keys(list[0]) : [],
-        newest: newest.map((o) => ({ id: o.id, title: o.title, dates: pickDates(o), images: images(o) })),
+        newest: await Promise.all(newest.map(async (o) => ({ id: o.id, title: o.title, dates: pickDates(o), images: images(o), photo_uploaded: await uploaded(o) }))),
         detail,
       };
     } catch (err) {
