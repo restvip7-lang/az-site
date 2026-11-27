@@ -36,6 +36,23 @@ async function freshness() {
   } catch (err) {
     out.blog = { error: err instanceof Error ? err.name : "error" };
   }
+  // The azpo.com blogs (WordPress per language); the path is not documented anywhere, so a few likely ones.
+  const comBlogs: Record<string, unknown> = {};
+  for (const api of ["https://azpo.com/ru/blog/wp-json/wp/v2", "https://azpo.com/en/blog/wp-json/wp/v2", "https://azpo.com/ru/wp-json/wp/v2", "https://azpo.com/en/wp-json/wp/v2", "https://azpo.com/blog/wp-json/wp/v2"]) {
+    try {
+      const res = await fetch(`${api}/posts?per_page=3&_fields=id,date,modified,link,title`, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0 (compatible; AZPO site check)" }, signal: AbortSignal.timeout(15000) });
+      const text = await res.text();
+      let newest: unknown = text.slice(0, 120);
+      try {
+        const posts = JSON.parse(text) as { id: number; date: string; modified: string; link: string; title?: { rendered?: string } }[];
+        if (Array.isArray(posts)) newest = posts.map((p) => ({ id: p.id, date: p.date, modified: p.modified, title: p.title?.rendered, link: p.link }));
+      } catch {}
+      comBlogs[api] = { status: res.status, total: res.headers.get("x-wp-total"), newest };
+    } catch (err) {
+      comBlogs[api] = { error: err instanceof Error ? err.name : "error" };
+    }
+  }
+  out.azpo_com_blog = comBlogs;
   for (const [key, base] of [["azpo_ru", API_BASE], ["azpo_com", "https://api.azpo.com/api"]] as const) {
     try {
       const get = () => fetch(`${base}/real-estates/ru?limit=2000`, { cache: "no-store", signal: AbortSignal.timeout(60000) });
