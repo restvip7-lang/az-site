@@ -9,8 +9,11 @@
 - Next.js 15.5 (App Router, ISR, middleware), React 19.1, TypeScript, Tailwind CSS 4.
 - Postgres (сейчас Supabase через интеграцию Vercel, Франкфурт) через `postgres.js`; миграции в `src/lib/db/schema.ts` выполняются лениво при первом запросе.
 - Фото админки — Supabase Storage (бакет `media`), адаптер `src/lib/admin/storage.ts`.
-- Хостинг: Vercel (проект `azpo-site`), auto-deploy из `main`.
-- Аналитика: Vercel Analytics, Speed Insights; Яндекс Метрика при `NEXT_PUBLIC_YM_ID`.
+- Хостинг: Vercel (проект `azpo-site`, регион функций `fra1`), auto-deploy из `main` — временно, для демонстрации; затем перенос на собственный сервер. Решения не завязывать на Vercel.
+- Фото: свой ресайзер `/api/img/` (sharp → WebP), loader `src/lib/image-loader.ts`.
+- Заявки: `/api/lead/` → таблица `leads`, раздел «Заявки» в админке, уведомления в Telegram.
+- Тесты: vitest (`tests/`), CI — `.github/workflows/ci.yml`.
+- Аналитика: Vercel Analytics, Speed Insights; Яндекс Метрика при `NEXT_PUBLIC_YM_ID` и только после согласия на cookies (`src/components/Consent.tsx`); цели в `src/lib/track.ts`.
 
 ## Источники данных
 
@@ -29,7 +32,7 @@ src/
     property-turkey/       старые URL azpo.ru → 301 на новые
     services/, blog/, about/, contacts/, team/, reviews/, favorites/
   app/admin/               админка (объекты, статьи, SEO, редиректы, сотрудники), API upload/import/diag
-  app/api/                 listing (догрузка каталога), og (картинки для соцсетей)
+  app/api/                 listing (догрузка каталога), og (картинки для соцсетей), img (ресайз фото), lead (заявки)
   app/sitemap.xml, sitemaps/[name], robots.txt, llms.txt, manifest
   lib/                     api.ts (каталог), catalog.ts (URL-схема), admin/*, db/*, seo, i18n
   components/              UI
@@ -37,7 +40,7 @@ src/
 
 ## Требования (из ТЗ и решений владельца)
 
-- Языки: RU (основной, `/` → `/ru/`); EN — после перевода (до этого `/en/` → `/ru/`).
+- Языки: основные — русский и английский. Сейчас есть только RU (`/` → `/ru/`); EN — следующий этап (до этого `/en/` → `/ru/`).
 - URL-схема по SEO-ТЗ, старые URL azpo.ru — 301.
 - Фирменный стиль azpo.ru: цвета `#2E5A90`, `#3FB9E7`, шрифт Lato, фон `#EDF4FC`.
 - Цены в валюте объекта ($ или €), пересчёт в € по курсу ЕЦБ.

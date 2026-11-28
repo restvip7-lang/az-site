@@ -1,6 +1,6 @@
 # Production Readiness Audit — AZPO Estate
 
-Дата: 28.11.2026. Аудитор: Claude (независимая проверка, код сайта не менялся).
+Дата: 28.11.2026. Аудитор: Claude. Аудит проведён без изменения кода; затем исправления внесены в PR #1 (коммит `37d0246`), колонка «После исправления» заполнена по проверкам этого PR.
 Объект аудита:
 
 - **Репозиторий `restvip7-lang/az-site`** (коммит `b49a923`) и его развёртывание **https://azpo-site.vercel.app** — новый сайт, кандидат на запуск вместо azpo.ru. Это основной объект оценки.
@@ -25,6 +25,34 @@
 
 Сильные стороны нового сайта (проверено): Lighthouse мобильный 97/97/96 на главной, CLS 0, 0 битых внутренних ссылок из 268 проверенных, корректные canonical, sitemap на 1 978 URL, schema `RealEstateListing`/`BreadcrumbList`/`FAQPage`, llms.txt, нормальная авторизация админки (scrypt, хеш токенов, лимит попыток), заголовки безопасности, сборка, `tsc` и `eslint` без ошибок.
 
+## После исправлений (PR #1, ветка `claude/project-thread-yutej9`)
+
+Все 3 Critical проблемы нового сайта закрыты в коде и проверены локально и на превью Vercel. Вердикт после мержа: **Ready with Risks** — можно показывать и собирать заявки на демо, но для переезда на azpo.ru ещё нужны EN-версия (H2), бэкапы (H6), LCP (H7) и алерты (H8).
+
+Что нужно от владельца, без этого часть исправлений не заработает полностью:
+
+1. Создать Telegram-бота и чат менеджеров, задать `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` (без них заявки сохраняются, но уведомлений нет).
+2. Задать `NEXT_PUBLIC_YM_ID`, создать в Метрике цели с именами из H4.
+3. Отдать черновик `/ru/privacy/` юристу и вписать юрлицо.
+4. Задать `DIAG_TOKEN` (16+ символов), если diag нужен без входа в админку.
+5. Смержить PR #1.
+
+Изменения не завязаны на Vercel: ресайз фото через `sharp` в обычном route handler, заявки в Postgres, уведомления через HTTP API Telegram. На своём сервере всё работает так же (`vercel.json` там просто игнорируется).
+
+Баллы, изменившиеся после исправлений (остальные без изменений):
+
+| # | Направление | До | После | Почему |
+|---|---|---|---|---|
+| 1 | Performance & Speed | 78 | 82 | фото снова грузятся (WebP, кеш на год); LCP не менялся |
+| 11 | Conversion Rate Optimization | 35 | 65 | заявка сохраняется, цели есть, WhatsApp как запасной путь |
+| 12 | Functionality & User Flow | 55 | 75 | фото и форма работают; стабильность БД после смены региона — Not Tested |
+| 15 | API & Database | 45 | 55 | функции в `fra1` рядом с БД; пул не менялся |
+| 16 | Security | 65 | 72 | diag закрыт, проверки происхождения и лимиты у формы |
+| 17 | Privacy & Cookies | 20 | 70 | политика (черновик), согласие, Метрика только после согласия |
+| 18 | Analytics & Tracking | 30 | 60 | 7 целей в коде; Метрика не подключена (нет ID) |
+| 21 | Automated Testing | 0 | 45 | 17 unit-тестов и CI; e2e (Playwright) нет |
+| 23 | Deployment Configuration | 45 | 60 | CI на PR, регион `fra1`; auto-deploy main без обязательной проверки |
+
 ## Показатели до исправлений
 
 Lighthouse 13.6.0 через PageSpeed Insights, 28.11.2026 ~15:00 (GMT+3). Формат: Performance / Accessibility / Best Practices / SEO.
@@ -48,41 +76,41 @@ INP: полевых данных (CrUX) нет ни у демо, ни у azpo.ru
 
 | # | Категория | Проблема | Приоритет | До исправления | После исправления | Статус |
 |---|---|---|---|---|---|---|
-| C1 | Functionality / Performance | Фото объектов через `/_next/image` отдают 402 (лимит Image Optimization) | Critical | 23 из 23 проверенных URL фото с api.azpo.ru → 402; на Махмутларе 6/8 фото битые | Не исправлялось / Not Tested | Open |
-| C2 | CRO / Functionality | Лиды не сохраняются: форма только открывает WhatsApp (`src/components/LeadForm.tsx:13-17`) | Critical | 0 сохранённых заявок by design; нет e-mail/CRM | Не исправлялось / Not Tested | Open |
-| C3 | Privacy | Нет политики конфиденциальности, нет баннера cookies; согласие в форме без ссылки | Critical | 0 ссылок на политику на всех 25 проверенных страницах | Не исправлялось / Not Tested | Open |
-| H1 | API & DB | Таймауты и переполнение соединений БД, функции в `iad1`, БД во Франкфурте | High | 94 таймаута 8 с за 7 дней, 18 × EMAXCONN 26.11, `db.ms` 1 132 мс в diag | Не исправлялось / Not Tested | Open |
-| H2 | Multilingual SEO | Нет EN-версии; `/en/*` → 308 на русские страницы (`src/lib/i18n.ts:4`, `src/middleware.ts:43`) | High | на azpo.ru/azpo.com EN есть | Не исправлялось / Not Tested | Open |
-| H3 | Security | Публичный `/admin/api/diag/?dates` без авторизации запускает ~10 внешних запросов (до 60 с каждый, 3 МБ фида) | High | доступен анонимно, `maxDuration 300` | Не исправлялось / Not Tested | Open |
-| H4 | Analytics | Нет целей/конверсий; Яндекс Метрика не подключена (`NEXT_PUBLIC_YM_ID` пуст) | High | на демо только Vercel Analytics, `reachGoal` в коде нет | Не исправлялось / Not Tested | Open |
-| H5 | Automated Testing / Deployment | Нет ни одного теста и CI; каждый push в `main` сразу идёт в production | High | 0 тестов, нет `.github/` | Не исправлялось / Not Tested | Open |
-| H6 | Backup & Recovery | Нет описанного бэкапа БД Supabase и фото в Storage; процедура восстановления не проверялась | High | документации нет | Не исправлялось / Not Tested | Open |
-| H7 | Performance / CWV | LCP на мобильных выше 2,5 с на всех трёх проверенных страницах; карточка 4,1 с | High | 2,6 / 2,8 / 4,1 с | Не исправлялось / Not Tested | Open |
-| H8 | Error Handling | Ошибки видны только в логах Vercel, алертов нет; повторяющиеся ошибки неделями никто не видит | High | 15 групп ошибок за 7 дней | Не исправлялось / Not Tested | Open |
-| M1 | Security / Dependencies | `npm audit`: postcss (high) через next 15.5.29; фикс только в Next 16 | Medium | 1 high, 1 moderate (уязвимость в сборке, не в рантайме) | Не исправлялось / Not Tested | Open |
-| M2 | Security | CSP без `script-src`/`default-src`; Lighthouse «CSP неэффективна против XSS» | Medium | CSP = `object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Не исправлялось / Not Tested | Open |
-| M3 | Content | Ошибки данных каталога видны в публичных текстах (цена «от 450 $» в Анталии/Дёшемеалты, смешение валют «от 825 000 $ до 1 545 000 €») | Medium | см. /llms.txt | Не исправлялось / Not Tested | Open |
-| M4 | Content | Тексты услуг помечены «черновик», 14 гайдов по районам переписаны из чужого проекта, факты не проверены | Medium | `src/app/[lang]/services/[slug]/page.tsx:153` | Не исправлялось / Not Tested | Open |
-| M5 | Structured Data | Self-serving отзывы: `AggregateRating` компании о самой себе из 4 захардкоженных отзывов (`src/app/[lang]/reviews/page.tsx:22`) | Medium | Google не показывает такие звёзды и может считать это нарушением | Не исправлялось / Not Tested | Open |
-| M6 | Technical SEO | 1 051 URL категорий в sitemap; часть посадочных с 3–5 объектами — риск thin content | Medium | 1 978 URL всего | Не исправлялось / Not Tested | Open |
-| M7 | Technical SEO | В sitemap нет `<lastmod>` | Medium | 0 из 5 файлов | Не исправлялось / Not Tested | Open |
-| M8 | Deployment | Сайт зависит от azpo.ru при сборке: при пустом ответе API сборка проходит успешно (проверено с пустым моком) | Medium | `next build` exit 0 при 0 объектах | Не исправлялось / Not Tested | Open |
-| M9 | Deployment | Тариф Vercel, по признаку 402, — Hobby (некоммерческий по условиям Vercel) | Medium | Not Verified | Не исправлялось / Not Tested | Open |
-| M10 | Security | Репозиторий публичный; хеш setup-кода и вся логика админки видны всем | Medium | `src/lib/admin/auth.ts:15` | Не исправлялось / Not Tested | Open |
-| M11 | Accessibility | Lighthouse: недостаточный контраст и «одинаковые ссылки с разным назначением» | Medium | A11y 97 | Не исправлялось / Not Tested | Open |
-| L1 | Technical SEO | 404 под `/ru/…` без `lang`, без шапки/навигации, title главной | Low | `/ru/nonexistent-xyz/` → 404, `lang=""`, 0 ссылок | Не исправлялось / Not Tested | Open |
-| L2 | Code Quality | `TimeoutNegativeWarning` в рантайме (отрицательный таймаут) | Low | 23 раза за 7 дней | Не исправлялось / Not Tested | Open |
-| L3 | Performance | `/llms.txt` не кешируется (`max-age=0`, MISS), 1,4 с | Low | | Не исправлялось / Not Tested | Open |
-| L4 | Content | Опечатка «28 ноября 2026 г..» (две точки) в llms.txt | Low | | Не исправлялось / Not Tested | Open |
-| L5 | Accessibility | Мелкие цели касания (<24 px) в хлебных крошках и списках ссылок футера | Low | найдены на 7 из 12 страниц | Не исправлялось / Not Tested | Open |
-| P1 | Technical SEO (azpo.ru/.com) | **Все карточки объектов `noindex, nofollow`** | Critical | 18/18 проверенных RU и EN карточек | Не исправлялось / Not Tested | Open |
-| P2 | Technical SEO (azpo.ru/.com) | canonical и hreflang = `//` или `//about` (относительные, битые); у «Гражданства» canonical на `//about` | Critical | все проверенные страницы; Lighthouse подтверждает | Не исправлялось / Not Tested | Open |
-| P3 | Technical SEO (azpo.ru/.com) | `/sitemap.xml` → HTML-страница; любые несуществующие URL отдают 200 (soft 404), даже `lang="sitemap-index.xml"` | High | | Не исправлялось / Not Tested | Open |
-| P4 | On-page (azpo.ru/.com) | `og:image` = `http://localhost:3000/...` | High | все страницы | Не исправлялось / Not Tested | Open |
-| P5 | Security (azpo.ru/.com) | Нет HSTS, CSP, X-Frame-Options; `x-powered-by: Next.js`; по обзору сервера 24.11 открыт MySQL 3306/3310 в интернет | High | заголовки проверены сегодня; порты — Not Tested сегодня | Не исправлялось / Not Tested | Open |
-| P6 | Content (azpo.ru/.com) | Новости не выходят с весны 2025; azpo.com отстаёт от azpo.ru по объектам (892 против 901); EN-карточки новых объектов без H1 | High | RU 19.03.2025, EN 28.04.2025 | Не исправлялось / Not Tested | Open |
-| P7 | Multilingual (azpo.ru/.com) | Два домена с одинаковым контентом без кросс-доменного canonical | High | | Не исправлялось / Not Tested | Open |
-| P8 | Performance (azpo.ru) | Мобильный LCP 17,1 с, CLS карточки 0,486, 4,2 МБ неоптимизированных изображений | High | | Не исправлялось / Not Tested | Open |
+| C1 | Functionality / Performance | Фото объектов через `/_next/image` отдают 402 (лимит Image Optimization) | Critical | 23 из 23 проверенных URL фото с api.azpo.ru → 402; на Махмутларе 6/8 фото битые | Свой ресайзер `/api/img/` (sharp, WebP) вместо Vercel Image Optimization; не зависит от хостинга. Превью: Махмутлар 10/10 фото, все `/api/img` → 200, повтор — CDN HIT ~83 мс | Fixed |
+| C2 | CRO / Functionality | Лиды не сохраняются: форма только открывает WhatsApp (`src/components/LeadForm.tsx:13-17`) | Critical | 0 сохранённых заявок by design; нет e-mail/CRM | Заявки пишутся в таблицу `leads` (`/api/lead/`), список в админке «Заявки», уведомление в Telegram при заданных `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`; WhatsApp остаётся запасным путём. Локально: сохранение, 422, 403, 429, honeypot проверены | Fixed (Telegram ждёт токен) |
+| C3 | Privacy | Нет политики конфиденциальности, нет баннера cookies; согласие в форме без ссылки | Critical | 0 ссылок на политику на всех 25 проверенных страницах | Страница `/ru/privacy/`, ссылка в футере и в форме, обязательная галочка согласия, баннер cookies («Принять» / «Только необходимые»), Метрика грузится только после согласия. Текст политики — черновик | Fixed (текст проверяет юрист) |
+| H1 | API & DB | Таймауты и переполнение соединений БД, функции в `iad1`, БД во Франкфурте | High | 94 таймаута 8 с за 7 дней, 18 × EMAXCONN 26.11, `db.ms` 1 132 мс в diag | `vercel.json` → `regions: ["fra1"]` (подтверждено на превью). Пул соединений и таймауты после мержа — Not Tested | Partially fixed |
+| H2 | Multilingual SEO | Нет EN-версии; `/en/*` → 308 на русские страницы (`src/lib/i18n.ts:4`, `src/middleware.ts:43`) | High | на azpo.ru/azpo.com EN есть | Не исправлялось | Open |
+| H3 | Security | Публичный `/admin/api/diag/?dates` без авторизации запускает ~10 внешних запросов (до 60 с каждый, 3 МБ фида) | High | доступен анонимно, `maxDuration 300` | Проверки diag (и `?dates`) — только для вошедших сотрудников или с `?token=DIAG_TOKEN`; аноним получает `{ok:true}` | Fixed |
+| H4 | Analytics | Нет целей/конверсий; Яндекс Метрика не подключена (`NEXT_PUBLIC_YM_ID` пуст) | High | на демо только Vercel Analytics, `reachGoal` в коде нет | Цели `lead_sent`, `lead_error`, `whatsapp_click`, `telegram_click`, `phone_click`, `email_click`, `favorite_add` уходят в Метрику (при согласии) и в Vercel Analytics. ID Метрики не задан | Partially fixed (нужен NEXT_PUBLIC_YM_ID) |
+| H5 | Automated Testing / Deployment | Нет ни одного теста и CI; каждый push в `main` сразу идёт в production | High | 0 тестов, нет `.github/` | vitest: 17 тестов (изображения, заявки, маршрутизация); GitHub Actions: lint, typecheck, test, build с мок-API, npm audit critical. CI на 37d0246 зелёный | Fixed |
+| H6 | Backup & Recovery | Нет описанного бэкапа БД Supabase и фото в Storage; процедура восстановления не проверялась | High | документации нет | Не исправлялось | Open |
+| H7 | Performance / CWV | LCP на мобильных выше 2,5 с на всех трёх проверенных страницах; карточка 4,1 с | High | 2,6 / 2,8 / 4,1 с | Не исправлялось | Open |
+| H8 | Error Handling | Ошибки видны только в логах Vercel, алертов нет; повторяющиеся ошибки неделями никто не видит | High | 15 групп ошибок за 7 дней | Не исправлялось | Open |
+| M1 | Security / Dependencies | `npm audit`: postcss (high) через next 15.5.29; фикс только в Next 16 | Medium | 1 high, 1 moderate (уязвимость в сборке, не в рантайме) | Не исправлялось | Open |
+| M2 | Security | CSP без `script-src`/`default-src`; Lighthouse «CSP неэффективна против XSS» | Medium | CSP = `object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | Не исправлялось | Open |
+| M3 | Content | Ошибки данных каталога видны в публичных текстах (цена «от 450 $» в Анталии/Дёшемеалты, смешение валют «от 825 000 $ до 1 545 000 €») | Medium | см. /llms.txt | Не исправлялось | Open |
+| M4 | Content | Тексты услуг помечены «черновик», 14 гайдов по районам переписаны из чужого проекта, факты не проверены | Medium | `src/app/[lang]/services/[slug]/page.tsx:153` | Не исправлялось | Open |
+| M5 | Structured Data | Self-serving отзывы: `AggregateRating` компании о самой себе из 4 захардкоженных отзывов (`src/app/[lang]/reviews/page.tsx:22`) | Medium | Google не показывает такие звёзды и может считать это нарушением | Разметка `AggregateRating`/`Review` убрана, средняя оценка видна только на странице | Fixed |
+| M6 | Technical SEO | 1 051 URL категорий в sitemap; часть посадочных с 3–5 объектами — риск thin content | Medium | 1 978 URL всего | Уже было в коде: посадочные с малым числом объектов `noindex` и не попадают в sitemap. Количество в Search Console — Not Tested | Mitigated |
+| M7 | Technical SEO | В sitemap нет `<lastmod>` | Medium | 0 из 5 файлов | `<lastmod>` добавлен для статей (из `updated_at`); у каталога даты нет в API | Partially fixed |
+| M8 | Deployment | Сайт зависит от azpo.ru при сборке: при пустом ответе API сборка проходит успешно (проверено с пустым моком) | Medium | `next build` exit 0 при 0 объектах | Не исправлялось | Open |
+| M9 | Deployment | Тариф Vercel, по признаку 402, — Hobby (некоммерческий по условиям Vercel) | Medium | Not Verified | Не исправлялось | Open |
+| M10 | Security | Репозиторий публичный; хеш setup-кода и вся логика админки видны всем | Medium | `src/lib/admin/auth.ts:15` | Не исправлялось | Open |
+| M11 | Accessibility | Lighthouse: недостаточный контраст и «одинаковые ссылки с разным назначением» | Medium | A11y 97 | Не исправлялось | Open |
+| L1 | Technical SEO | 404 под `/ru/…` без `lang`, без шапки/навигации, title главной | Low | `/ru/nonexistent-xyz/` → 404, `lang=""`, 0 ссылок | Диагностика: 404 отдаётся клиентской оболочкой без серверного HTML (так же в production). `force-dynamic` в catch-all не помог, откатили | Open |
+| L2 | Code Quality | `TimeoutNegativeWarning` в рантайме (отрицательный таймаут) | Low | 23 раза за 7 дней | Не исправлялось | Open |
+| L3 | Performance | `/llms.txt` не кешируется (`max-age=0`, MISS), 1,4 с | Low | | Не исправлялось | Open |
+| L4 | Content | Опечатка «28 ноября 2026 г..» (две точки) в llms.txt | Low | | Не исправлялось | Open |
+| L5 | Accessibility | Мелкие цели касания (<24 px) в хлебных крошках и списках ссылок футера | Low | найдены на 7 из 12 страниц | Не исправлялось | Open |
+| P1 | Technical SEO (azpo.ru/.com) | **Все карточки объектов `noindex, nofollow`** | Critical | 18/18 проверенных RU и EN карточек | Не исправлялось | Open |
+| P2 | Technical SEO (azpo.ru/.com) | canonical и hreflang = `//` или `//about` (относительные, битые); у «Гражданства» canonical на `//about` | Critical | все проверенные страницы; Lighthouse подтверждает | Не исправлялось | Open |
+| P3 | Technical SEO (azpo.ru/.com) | `/sitemap.xml` → HTML-страница; любые несуществующие URL отдают 200 (soft 404), даже `lang="sitemap-index.xml"` | High | | Не исправлялось | Open |
+| P4 | On-page (azpo.ru/.com) | `og:image` = `http://localhost:3000/...` | High | все страницы | Не исправлялось | Open |
+| P5 | Security (azpo.ru/.com) | Нет HSTS, CSP, X-Frame-Options; `x-powered-by: Next.js`; по обзору сервера 24.11 открыт MySQL 3306/3310 в интернет | High | заголовки проверены сегодня; порты — Not Tested сегодня | Не исправлялось | Open |
+| P6 | Content (azpo.ru/.com) | Новости не выходят с весны 2025; azpo.com отстаёт от azpo.ru по объектам (892 против 901); EN-карточки новых объектов без H1 | High | RU 19.03.2025, EN 28.04.2025 | Не исправлялось | Open |
+| P7 | Multilingual (azpo.ru/.com) | Два домена с одинаковым контентом без кросс-доменного canonical | High | | Не исправлялось | Open |
+| P8 | Performance (azpo.ru) | Мобильный LCP 17,1 с, CLS карточки 0,486, 4,2 МБ неоптимизированных изображений | High | | Не исправлялось | Open |
 
 ## Детали по проблемам
 
@@ -195,10 +223,18 @@ INP: полевых данных (CrUX) нет ни у демо, ни у azpo.ru
 
 ## Изменённые файлы
 
-Исходный код сайта не менялся. Добавлены только отчёты: `AUDIT_REPORT.md`, `TEST_REPORT.md`, `KNOWN_ISSUES.md`, `PROJECT.md`, `CHANGELOG.md`, `DEPLOYMENT.md`.
+Этап аудита (`cf17b41`): только отчёты `AUDIT_REPORT.md`, `TEST_REPORT.md`, `KNOWN_ISSUES.md`, `PROJECT.md`, `CHANGELOG.md`, `DEPLOYMENT.md`.
+
+Этап исправлений (`37d0246`):
+- Фото: `src/lib/image-loader.ts`, `src/lib/image-sizes.ts`, `src/app/api/img/route.ts`, `next.config.ts`.
+- Заявки: `src/lib/leads.ts`, `src/app/api/lead/route.ts`, `src/lib/db/schema.ts` (миграция 8, таблица `leads`), `src/components/LeadForm.tsx`, `src/app/admin/(panel)/leads/page.tsx`, `src/app/admin/actions.ts`, `src/components/admin/AdminUI.tsx`, `src/app/admin/(panel)/page.tsx`.
+- Приватность и цели: `src/app/[lang]/privacy/page.tsx`, `src/components/Consent.tsx`, `src/lib/track.ts`, `src/app/[lang]/layout.tsx`, футер, `src/lib/routes.ts`, `src/lib/sitemap.ts`.
+- Прочее: `src/app/admin/api/diag/route.ts`, `src/app/[lang]/reviews/page.tsx`, `vercel.json`, `vitest.config.mts`, `tests/*`, `scripts/mock-api.mjs`, `.github/workflows/ci.yml`, `package.json`.
 
 ## Оставшиеся риски
 
+- Политика конфиденциальности — черновик; юридически она не проверена.
+- Миграция `leads` создаётся автоматически при первом обращении; на своём сервере нужна та же БД или `pg_dump` перед переносом.
 - Переезд домена без EN и без переноса 301-редиректов со старых EN-URL потеряет часть трафика.
 - Пока каталог читает фид azpo.ru, падение старого сервера влияет на новый сайт.
 - Публичный репозиторий упрощает атакующему анализ админки.

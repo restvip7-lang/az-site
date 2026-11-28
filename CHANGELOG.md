@@ -2,6 +2,16 @@
 
 Формат: дата — что изменилось — коммиты. Новые записи сверху. Каждое исправление из [KNOWN_ISSUES.md](KNOWN_ISSUES.md) — отдельной строкой с номером проблемы.
 
+## 2026-11-28 — Исправления по аудиту (PR #1, `37d0246`)
+- C1: фото через свой ресайзер `/api/img/` (sharp → WebP, кеш на год) вместо Vercel Image Optimization.
+- C2: заявки сохраняются в таблицу `leads`, раздел «Заявки» в админке, уведомление в Telegram (по переменным), защита от спама.
+- C3: страница политики конфиденциальности (черновик), галочка согласия со ссылкой, баннер cookies; Метрика только после согласия.
+- H1: регион функций `fra1` (`vercel.json`).
+- H3: diag закрыт для анонимов.
+- H4: цели конверсий (форма, WhatsApp, Telegram, телефон, e-mail, избранное).
+- H5: vitest (17 тестов), GitHub Actions CI.
+- M5: убрана self-serving разметка отзывов. M7: `lastmod` у статей в sitemap.
+
 ## 2026-11-28 — Production Readiness Audit
 - Добавлены отчёты: AUDIT_REPORT.md, TEST_REPORT.md, KNOWN_ISSUES.md, PROJECT.md, DEPLOYMENT.md, CHANGELOG.md. Код сайта не менялся.
 - Вердикт: Not Ready (3 Critical, 8 High).
