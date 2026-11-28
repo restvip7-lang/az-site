@@ -15,8 +15,10 @@ export default async function Dashboard() {
     (select count(*) from articles where published)::int as articles_live,
     (select count(*) from articles where not published)::int as articles_draft,
     (select count(*) from seo_pages)::int as seo,
-    (select count(*) from redirects)::int as redirects`;
+    (select count(*) from redirects)::int as redirects,
+    (select count(*) from leads where status = 'new')::int as leads_new`;
   const tiles: [string, string, number, string][] = [
+    ["/admin/leads/", "Новых заявок", c.leads_new, "с форм сайта"],
     ["/admin/objects/", "Объекты на сайте", c.objects_live, `черновиков: ${c.objects_draft}`],
     ["/admin/articles/", "Статьи на сайте", c.articles_live, `черновиков: ${c.articles_draft}`],
     ["/admin/seo/", "Страниц с SEO-текстами", c.seo, "title, description, H1"],
@@ -28,7 +30,7 @@ export default async function Dashboard() {
       {!storageHost() && (
         <p className="mb-6 rounded-[18px_6px_18px_6px] bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">Хранилище фото не подключено: загрузка фотографий не заработает, пока в Vercel не появятся SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY.</p>
       )}
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {tiles.map(([href, label, n, sub]) => (
           <li key={href}>
             <Link href={href} className="adm-card block transition-shadow duration-200 hover:shadow-[0_1px_2px_rgb(22_52_87/0.06),0_24px_48px_-28px_rgb(22_52_87/0.7)]">

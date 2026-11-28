@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "../globals.css";
@@ -12,6 +11,8 @@ import { geoIndex, listingPath } from "@/lib/catalog";
 import { cityName, districtName } from "@/lib/geo";
 import Footer from "@/components/Footer";
 import FloatingContact from "@/components/FloatingContact";
+import Consent from "@/components/Consent";
+import { R } from "@/lib/routes";
 import { INDEXABLE, JsonLd, SITE_NAME, SITE_URL, organizationLd } from "@/lib/site";
 
 // Lato is the brand typeface. These are the Lato 2.0 files from the azpo.ru source,
@@ -28,8 +29,6 @@ const lato = localFont({
   display: "swap",
   fallback: ["system-ui", "Segoe UI", "Arial"],
 });
-
-const YM_ID = process.env.NEXT_PUBLIC_YM_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -72,9 +71,6 @@ export default async function RootLayout({ children, params }: { children: React
     }));
   return (
     <html lang={lang}>
-      <head>
-        <link rel="preconnect" href="https://api.azpo.ru" />
-      </head>
       <body className={`${lato.variable} flex min-h-screen flex-col pb-16 antialiased md:pb-0`}>
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2">
           Перейти к содержанию
@@ -86,11 +82,7 @@ export default async function RootLayout({ children, params }: { children: React
         <JsonLd data={organizationLd} />
         <Analytics />
         <SpeedInsights />
-        {YM_ID && (
-          <Script id="ym" strategy="lazyOnload">
-            {`(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(${Number(YM_ID)},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});`}
-          </Script>
-        )}
+        <Consent privacyHref={R.privacy} />
       </body>
     </html>
   );

@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Types
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build (with a mock catalogue API)
+        run: |
+          node scripts/mock-api.mjs &
+          npm run build
+        env:
+          AZPO_API_BASE: http://localhost:4010/api
+          AZPO_BLOG_API: http://localhost:4010/wp/v2
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Dependency audit (production, critical only)
+        run: npm audit --omit=dev --audit-level=critical

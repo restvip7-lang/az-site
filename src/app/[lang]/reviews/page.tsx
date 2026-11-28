@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { REVIEWS } from "@/lib/content";
 import { alternates } from "@/lib/i18n";
 import { R } from "@/lib/routes";
-import { JsonLd, SITE_URL } from "@/lib/site";
 import LeadForm from "@/components/LeadForm";
 import { Breadcrumbs } from "@/components/catalog-blocks";
 
@@ -12,27 +11,15 @@ export const metadata: Metadata = {
   alternates: alternates(R.reviews),
 };
 
-// Review + AggregateRating only here, from the reviews shown on this page (spec 9).
+// No Review / AggregateRating markup: these are reviews of the company published by the company itself
+// ("self-serving reviews"), which Google does not show as stars and treats as against its guidelines.
+// The reviews stay on the page as plain text.
 const avg = REVIEWS.reduce((s, r) => s + r.rating, 0) / REVIEWS.length;
-const ld = {
-  "@context": "https://schema.org",
-  "@type": "RealEstateAgent",
-  "@id": `${SITE_URL}/#organization`,
-  name: "AZPO Estate",
-  aggregateRating: { "@type": "AggregateRating", ratingValue: avg.toFixed(1), bestRating: 5, reviewCount: REVIEWS.length },
-  review: REVIEWS.map((r) => ({
-    "@type": "Review",
-    author: { "@type": "Person", name: r.name },
-    reviewBody: r.text,
-    reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
-  })),
-};
 
 export default function Reviews() {
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6">
       <Breadcrumbs items={[{ name: "Главная", href: R.home }, { name: "Отзывы", href: R.reviews }]} />
-      <JsonLd data={ld} />
       <header className="mb-10 sm:mb-14">
         <p className="eyebrow text-brand-500">Отзывы клиентов</p>
         <h1 className="mt-3 max-w-3xl text-balance text-4xl font-black leading-[1] tracking-[-0.04em] text-ink sm:text-6xl">Нам <span className="slant">доверяют</span></h1>

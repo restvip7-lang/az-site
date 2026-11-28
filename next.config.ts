@@ -27,7 +27,11 @@ const nextConfig: NextConfig = {
     "/[lang]/opengraph-image": ["./src/fonts/og/**", "./public/img/dest/istanbul.webp"],
   },
   images: {
-    // Property photos are served by the AZPO backend; Next resizes them and serves AVIF/WebP.
+    // Every next/image goes through our own resizer /api/img/ (src/lib/image-loader.ts): works the same on
+    // Vercel and on our own server, with no per-image quota. The patterns below document the allowed sources;
+    // the route itself enforces them (src/lib/image-sizes.ts).
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
     remotePatterns: [
       { protocol: "https", hostname: "api.azpo.ru", pathname: "/api/files/**" },
       { protocol: "https", hostname: "api.azpo.com", pathname: "/api/files/**" },
@@ -36,10 +40,8 @@ const nextConfig: NextConfig = {
       // Cover photos of the district guides (Unsplash licence: free use, hotlinking allowed).
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
     ],
-    formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 828, 1080, 1280, 1920],
     imageSizes: [96, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async headers() {
     return [

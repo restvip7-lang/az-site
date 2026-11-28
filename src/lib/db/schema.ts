@@ -186,4 +186,22 @@ export const MIGRATIONS: Migration[] = [
   alter table staff drop constraint if exists staff_role_check;
   alter table staff add constraint staff_role_check check (role in ('owner', 'editor', 'viewer'));
   `,
+  // 8: requests from the site's forms ("заявки"), so a lead is never lost when WhatsApp doesn't open.
+  `
+  create table if not exists leads (
+    id serial primary key,
+    created_at timestamptz not null default now(),
+    name text not null,
+    phone text not null,
+    message text,
+    context text,
+    page text,
+    lang text,
+    ip_hash text,
+    status text not null default 'new' check (status in ('new', 'in_work', 'done', 'spam')),
+    notified boolean not null default false
+  );
+  create index if not exists leads_created on leads (created_at desc);
+  create index if not exists leads_ip_at on leads (ip_hash, created_at);
+  `,
 ];
