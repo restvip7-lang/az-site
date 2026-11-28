@@ -14,6 +14,7 @@ import { importBlog } from "@/lib/admin/importer";
 import { isGeo } from "@/lib/admin/options";
 import { normalisePath } from "@/lib/admin/seo";
 import { storage } from "@/lib/admin/storage";
+import { isLeadStatus } from "@/lib/leads";
 import { OBJECT_DISTANCES, type DistanceKey, type FormState } from "@/lib/admin/forms";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -326,6 +327,18 @@ export async function deleteRedirectAction(fd: FormData) {
   await sql`delete from redirects where from_path = ${str(fd, "from")}`;
   revalidateTag("redirects");
   revalidatePath("/admin/redirects/");
+}
+
+/* ───────────── Leads ───────────── */
+
+export async function setLeadStatusAction(fd: FormData) {
+  if (!canEdit(await requireStaff())) return;
+  const id = Number(str(fd, "id"));
+  const status = str(fd, "status");
+  if (!Number.isInteger(id) || !isLeadStatus(status)) return;
+  const sql = await db();
+  await sql`update leads set status = ${status} where id = ${id}`;
+  revalidatePath("/admin/leads/");
 }
 
 /* ───────────── Staff ───────────── */

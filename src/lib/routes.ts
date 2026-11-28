@@ -15,5 +15,6 @@ export const R = {
   blog: `/${LANG}/blog/`,
   contacts: `/${LANG}/contacts/`,
   favorites: `/${LANG}/favorites/`,
+  privacy: `/${LANG}/privacy/`,
   search: `/${LANG}/search/`,
 };

@@ -128,7 +128,7 @@ export default async function Footer({ lang = "ru" }: { lang?: string }) {
         </div>
 
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 pb-8 text-xs text-white/60 sm:flex-row sm:justify-between sm:px-10">
-          <span>© AZPO Estate, {new Date().getFullYear()}</span>
+          <span>© AZPO Estate, {new Date().getFullYear()} · <Link href={R.privacy} className="underline underline-offset-2 transition-colors hover:text-sky">Политика конфиденциальности</Link></span>
           <span>Недвижимость в Турции: Алания, Анталия, Стамбул</span>
         </div>
       </div>

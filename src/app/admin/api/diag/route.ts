@@ -1,5 +1,6 @@
 // Health check of the admin back end: which settings are present (names only, never values),
 // whether the database answers and which schema version it has, whether photo storage is set up.
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db, hasDb } from "@/lib/db";
 import { checkStorage } from "@/lib/admin/storage";
@@ -97,12 +98,25 @@ async function freshness() {
   return out;
 }
 
+/** Constant-time comparison of the ?token= parameter with DIAG_TOKEN (for checks from scripts, without a login). */
+function tokenOk(given: string | null) {
+  const want = process.env.DIAG_TOKEN;
+  if (!want || !given || want.length < 16) return false;
+  const a = Buffer.from(given), b = Buffer.from(want);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function GET(req: Request) {
-  if (new URL(req.url).searchParams.has("dates")) {
+  const params = new URL(req.url).searchParams;
+  // The checks below call the database, the storage and other sites, some for up to a minute: only signed-in
+  // staff (or a script with DIAG_TOKEN) may start them. Anyone else gets a plain "the site is up" answer.
+  const staff = hasDb() ? await currentStaff().catch(() => null) : null;
+  if (!staff && !tokenOk(params.get("token"))) {
+    return NextResponse.json({ ok: true, details: "sign in to /admin/ to see the checks" }, { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+  }
+  if (params.has("dates")) {
     return NextResponse.json(await freshness(), { headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
   }
-  // Setting names only for signed-in staff; anyone else sees just whether things work.
-  const staff = hasDb() ? await currentStaff().catch(() => null) : null;
   const env = staff ? Object.keys(process.env).filter((k) => /POSTGRES|SUPABASE|DATABASE/.test(k)).sort() : undefined;
   const out: Record<string, unknown> = { env, storage: await checkStorage(), blog: await checkBlog(), db: { configured: hasDb() } };
   if (hasDb()) {
